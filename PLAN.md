@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.27 standard library; `github.com/egoist/mygo` for the native, GPU-drawn desktop UI and `github.com/lobehub/lobe-mygo` for Lobe UI components and tokens (no webview, no HTML, no JavaScript); `github.com/anacrolix/torrent` for BitTorrent; no cgo. Optional `ffmpeg` is used only to mux separate DASH audio/video when present.
 
-**Status:** implemented — CLI, all five protocols, native GUI, tests, CI and release workflow.
+**Status:** implemented — Windows CLI + MSI, all five protocols, native GUI, tests, manual releases; no GitHub Actions.
 
 **Spec:** this document — the Design section below is the spec.
 
@@ -18,6 +18,7 @@
 
 - Public repo `neko233-com/DownloadX`, MIT. CLI command `downloadx`, desktop app `downloadx-gui`.
 - One static binary per front end, no runtime dependencies, no cgo, no telemetry.
+- Windows 10/11 x64 is the only supported release platform for now; shipped as a per-machine MSI.
 - Default 16 parallel connections per download (`-x` overrides), NDM-style segmented transfers with resume.
 - Supported sources: `http://`, `https://` (including Range-less fallback), `ftp://`, `ftps://` (explicit TLS), HLS `.m3u8` (VOD), DASH `.mpd` (static), `magnet:` links and `.torrent` files.
 - Auto-detection by URL scheme, path extension and `Content-Type`; `--type` forces a protocol.
@@ -125,15 +126,18 @@ internal/bt/                   anacrolix/torrent adapter
 internal/progress/             TTY/plain/JSON reporters
 internal/desktop/              MyGo + Lobe UI window, queue manager, previews
 internal/version/              version variables (ldflags)
-.github/workflows/ci.yml       vet + test + build (linux/windows/macos)
-.github/workflows/release.yml  tag → cross-platform binaries + GitHub release
+installer/                     WiX source, icon and license RTF
+scripts/build-msi.ps1          Windows x64 MSI build
+install.ps1, install.sh        one-line installers
+RELEASE.md                     manual tag/release checklist
 ```
 
 ## Global Constraints
 
 - Module `github.com/neko233-com/DownloadX`; repo `DownloadX` (case-sensitive); commands `downloadx` and `downloadx-gui`.
-- `go 1.27.3` (MyGo needs it); `CGO_ENABLED=0`; cross-platform Windows/macOS/Linux (amd64 + arm64 for darwin/linux, amd64 for windows).
+- `go 1.27.3` (MyGo needs it); `CGO_ENABLED=0`; supported release: Windows 10/11 x64.
 - Direct dependencies: stdlib plus `github.com/anacrolix/torrent` (BitTorrent), `github.com/egoist/mygo` (native UI) and `github.com/lobehub/lobe-mygo` (Lobe UI kit). No ffmpeg hard dependency.
+- No GitHub Actions/CI/CD. Tags and GitHub releases are created manually; see `RELEASE.md`.
 - Default 16 connections; clamp to `[1,128]`. Minimum segment size 512 KiB.
 - State artifacts: `<dest>.downloadx` (JSON) and `<dest>.parts/` (directory); removed after success.
 - Never overwrite an existing file unless resuming it. Sanitized names must stay inside the destination directory.
@@ -150,7 +154,7 @@ internal/version/              version variables (ldflags)
 
 ## Tasks
 
-### Task 1: Module, CLI skeleton, naming, state, limiter, CI
+### Task 1: Module, CLI skeleton, naming, state, limiter, local build checks
 
 **Files:**
 - Create: `go.mod`, `cmd/downloadx/main.go`, `internal/version/version.go`, `internal/cli/cli.go`, `internal/cli/parse.go`, `internal/cli/parse_test.go`, `internal/engine/engine.go`, `internal/engine/naming.go`, `internal/engine/naming_test.go`, `internal/engine/state.go`, `internal/engine/state_test.go`, `internal/engine/limit.go`, `internal/engine/limit_test.go`, `.github/workflows/ci.yml`
@@ -171,7 +175,7 @@ internal/version/              version variables (ldflags)
 - [x] **Step 3: Implement `cli.Parse`** (hand-written parser, help text), `engine` types, naming helpers, state JSON, limiter.
 - [x] **Step 4: Write failing naming/state/limiter tests**: traversal names (`..\..\evil` → inside dir), reserved Windows names, disposition `filename*`, unique collision suffix, state round-trip and mismatch rejection, limiter waits ≈ n/rate.
 - [x] **Step 5: Implement helpers until tests pass.**
-- [x] **Step 6: Create `cmd/downloadx/main.go`** with signal-aware context, `version`, exit codes; CI workflow running vet/test/build.
+- [x] **Step 6: Create `cmd/downloadx/main.go`** with signal-aware context, `version`, exit codes; verify with local `go vet`/`go test`/`go build` (no hosted CI).
 - [x] **Step 7: `go vet ./... && go test ./... && go build ./cmd/downloadx`; commit `feat: bootstrap CLI, engine skeleton, naming and resume state`.**
 
 ### Task 2: HTTP segmented downloader
@@ -258,16 +262,16 @@ internal/version/              version variables (ldflags)
 - [x] **Step 2: Implement dispatch, sequential batch run, reporter lifecycle, interrupted exit code 130, per-task summary.**
 - [x] **Step 3: `go test ./... && go build ./cmd/downloadx`; commit `feat: wire CLI, dispatcher and progress output`.**
 
-### Task 8: Docs, release pipeline, end-to-end verification
+### Task 8: Docs, manual releases, end-to-end verification
 
 **Files:**
 - Modify: `README.md`, `PLAN.md`
-- Create: `.github/workflows/release.yml`
+- Create: `RELEASE.md`
 
-- [x] **Step 1: Write README** (install, usage table, protocol matrix, examples, architecture, limitations, roadmap).
-- [x] **Step 2: Write release workflow** building windows/amd64, linux/amd64+arm64, darwin/amd64+arm64 with `CGO_ENABLED=0` and uploading archives on `v*` tags.
-- [x] **Step 3: Verify against live endpoints** (`https://speed.cloudflare.com/__down?bytes=...`, a public HLS test stream) plus `go test ./...`, `go vet ./...`, `go build`.
-- [x] **Step 4: Tick completed boxes in this plan; commit and push.**
+- [x] **Step 1: Write README** (Windows install, MSI, one-line scripts, usage table, protocol matrix, architecture, limitations).
+- [x] **Step 2: Document the manual release process** in `RELEASE.md`: build the MSI, test, commit, tag, `gh release create`. No GitHub Actions.
+- [x] **Step 3: Verify against live endpoints** (`https://speed.cloudflare.com/__down?bytes=...`) plus `go test ./...`, `go vet ./...`, `go build`.
+- [x] **Step 4: Commit and push.**
 
 ### Task 9: Native GUI with MyGo + Lobe UI
 
@@ -284,3 +288,20 @@ internal/version/              version variables (ldflags)
 - [x] **Step 3: Build the Lobe-style window: hidden title bar, hero, composer (URL, folder picker, connections, protocol), queue cards, empty state, toasts.**
 - [x] **Step 4: Add a headless `ui.Tester` build test and a preview renderer that writes `docs/gui-preview-{dark,light}.png` from fake jobs.**
 - [x] **Step 5: `go test ./...`, `go vet ./...`, build both commands; commit.**
+
+### Task 10: Windows MSI and one-line installers
+
+**Files:**
+- Create: `installer/DownloadX.wxs`, `installer/License.rtf`, `assets/downloadx.ico`, `scripts/build-msi.ps1`, `install.ps1`, `install.sh`, `RELEASE.md`
+- Remove: `.github/workflows/`
+
+**Interfaces:**
+- `scripts/build-msi.ps1 -Version X.Y.Z` → `dist\DownloadX-windows-amd64.msi` and `.sha256`.
+- Stable asset name `DownloadX-windows-amd64.msi`, so `releases/latest/download/DownloadX-windows-amd64.msi` always resolves.
+- MSI: per-machine, `C:\Program Files\DownloadX`, both executables, Start-menu shortcut, ARP entry, icon; WiX `WixUI_InstallDir` wizard.
+
+- [x] **Step 1: Write the WiX source** (per-machine Program Files install, CLI + GUI components, HKLM keypaths, Common Programs shortcut, license and icon) and build it with `candle`/`light`.
+- [x] **Step 2: Add `scripts/build-msi.ps1`** producing the stable MSI name and SHA256; verify with an administrative install (`msiexec /a`) that both executables are inside.
+- [x] **Step 3: Add `install.ps1` and `install.sh`** that download the latest MSI and run it with UAC elevation; sh works in Git Bash/MSYS/Cygwin/WSL and refuses non-Windows hosts.
+- [x] **Step 4: Delete GitHub workflows and disable repository Actions; document manual tags/releases in `RELEASE.md` and README.**
+- [x] **Step 5: Update `go vet`/`go test`/builds and commit; tag and publish the release manually.**

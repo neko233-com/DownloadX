@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="DownloadX"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="neko233-com"
+           UpgradeCode="F7253FB4-CC8C-449F-B7CD-39DA557D76AE">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of DownloadX is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="DownloadX.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="DownloadX.ico" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/neko233-com/DownloadX" />
+
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseFile)" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="DownloadX" />
+      </Directory>
+      <Directory Id="CommonProgramsFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="DownloadX" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="DownloadXCLI" Guid="77269FA7-71C9-483E-ACE1-ACBD5C9EACB2" Win64="yes">
+        <File Id="DownloadXExe" Name="downloadx.exe"
+              Source="$(var.PayloadDir)\downloadx.exe" />
+        <RegistryValue Root="HKLM" Key="Software\neko233-com\DownloadX"
+                       Name="downloadx" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+      </Component>
+      <Component Id="DownloadXGUI" Guid="781D8092-0B1A-451E-964E-22BFE05D1A10" Win64="yes">
+        <File Id="DownloadXGuiExe" Name="downloadx-gui.exe"
+              Source="$(var.PayloadDir)\downloadx-gui.exe" />
+        <RegistryValue Root="HKLM" Key="Software\neko233-com\DownloadX"
+                       Name="downloadx-gui" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="5B2F72C3-DCB7-431B-A1C7-D6AD5E648DE8">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="DownloadX"
+                  Description="Fast, multi-connection download manager"
+                  Target="[INSTALLFOLDER]downloadx-gui.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="DownloadX.ico"
+                  IconIndex="0" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="Software\neko233-com\DownloadX"
+                       Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="DownloadX" Level="1">
+      <ComponentRef Id="DownloadXCLI" />
+      <ComponentRef Id="DownloadXGUI" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+  </Product>
+</Wix>

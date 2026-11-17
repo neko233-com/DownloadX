@@ -12,6 +12,10 @@
 coverage.*
 vendor/
 
+# Build output
+/build/
+*.wixpdb
+
 # IDE / OS
 .idea/
 .vscode/
