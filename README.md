@@ -70,6 +70,7 @@ antivirus heuristics on unsigned executables.
 
 ```bash
 downloadx [flags] <url|magnet:...|file.torrent>...
+downloadx gui
 downloadx version
 downloadx help
 ```
@@ -148,7 +149,7 @@ state is an error (use `--no-resume` to overwrite).
 ## Desktop app
 
 ```bash
-downloadx-gui
+downloadx-gui      # or: downloadx gui
 ```
 
 The window is drawn natively on the GPU by MyGo, using Lobe UI components and

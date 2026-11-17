@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +32,11 @@ func Usage() string {
 ` + ShortUsage() + `
 
 Protocols: HTTP(S), FTP/FTPS, HLS (VOD), DASH (static), BitTorrent/magnet.
+
+Commands:
+  downloadx gui            launch the native desktop app (downloadx-gui)
+  downloadx version        print version
+  downloadx help           print this help
 
 Flags:
   -o, --output PATH        output file (single source) or directory
@@ -60,6 +68,14 @@ Flags:
 
 // Main runs the CLI and returns a process exit code.
 func Main(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && (args[0] == "gui" || args[0] == "desktop") {
+		if err := launchGUI(args[1:], stdout, stderr); err != nil {
+			fmt.Fprintf(stderr, "downloadx: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+
 	o, err := Parse(args)
 	if err != nil {
 		fmt.Fprintf(stderr, "downloadx: %v\n\n%s\n", err, ShortUsage())
@@ -153,4 +169,33 @@ func humanBytes(n int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGT"[exp])
+}
+
+// launchGUI finds the desktop binary next to this executable or on PATH.
+func launchGUI(args []string, stdout, stderr io.Writer) error {
+	name := "downloadx-gui"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	path := ""
+	if exe, err := os.Executable(); err == nil {
+		candidate := filepath.Join(filepath.Dir(exe), name)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			path = candidate
+		}
+	}
+	if path == "" {
+		if found, err := exec.LookPath(name); err == nil {
+			path = found
+		}
+	}
+	if path == "" {
+		return fmt.Errorf("downloadx-gui is not installed; run: go install github.com/neko233-com/DownloadX/cmd/downloadx-gui@latest")
+	}
+
+	cmd := exec.Command(path, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	return cmd.Run()
 }

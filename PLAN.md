@@ -30,6 +30,7 @@
 
 ```
 downloadx [flags] <url|magnet|file.torrent>...
+downloadx gui
 downloadx version
 
 -o, --output PATH        output file (single source) or directory
