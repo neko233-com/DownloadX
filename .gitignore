@@ -1,0 +1,17 @@
+# Binaries
+/downloadx
+/downloadx.exe
+/bin/
+/dist/
+
+# Go
+*.test
+*.out
+coverage.*
+vendor/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
