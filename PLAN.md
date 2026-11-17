@@ -331,4 +331,4 @@ RELEASE.md, AGENTS.md          manual release and agent instructions
 - [x] **Step 2: Implement the native host and inbox queue, launch the GUI detached, and make the desktop manager watch the inbox and enqueue with 16 connections.**
 - [x] **Step 3: Add the host, native-messaging registration and Chrome/Edge external-extension `update_url` entries to the MSI; lock the install directory so the native manifest path stays valid.**
 - [x] **Step 4: Add `scripts/build-extension.ps1`** (Chrome pack, CRX/SHA256, refreshed `updates.xml` and `docs/extension/`) and verify the native host round-trip.
-- [x] **Step 5: Update docs for one-line install, browser restart, self-hosted updates, manual release; run tests, build the MSI and validate it.**
+- [x] **Step 5: Update docs for one-line install, browser restart, the one-time Keep prompt, self-hosted updates and manual release; run tests, build the MSI and validate it.**

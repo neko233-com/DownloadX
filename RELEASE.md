@@ -152,7 +152,9 @@ Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Edge\Extensions\pdlpjmbjgipkbjekncinh
 ```
 
 Restart Chrome/Edge after installing the MSI. The extension appears without the
-Web Store; no developer mode is needed.
+Web Store; on unmanaged Windows, click **Keep extension** once per browser (the
+browser's security check for self-hosted extensions). Updates are automatic
+afterwards. No developer mode is needed.
 
 ## Notes
 

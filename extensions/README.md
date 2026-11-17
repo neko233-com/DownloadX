@@ -13,8 +13,9 @@ The MSI registers for both browsers:
 
 Restart Chrome/Edge after installing DownloadX. The browser installs the
 extension on its next start, without the Web Store or developer mode, and
-keeps it updated from the same manifest. Users can disable interception in the
-extension popup.
+keeps it updated from the same manifest. On unmanaged Windows, Chrome and Edge
+ask **Keep extension** once because the extension is self-hosted; click it once
+per browser. Users can disable interception in the extension popup.
 
 ## How the hand-off works
 

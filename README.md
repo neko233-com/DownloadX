@@ -56,8 +56,9 @@ and installs to `C:\Program Files\DownloadX`. Launch **DownloadX** from the Star
 menu, or run the CLI at `C:\Program Files\DownloadX\downloadx.exe`.
 
 **Restart Chrome and Edge once after installing.** The MSI registers the
-extension with both browsers' external-extension registry; DownloadX then
-appears automatically and updates itself without the Web Store.
+extension with both browsers' external-extension registry. Chrome and Edge show
+a one-time **Keep extension** confirmation for self-hosted extensions; after
+that, DownloadX is enabled and updates itself without the Web Store.
 
 ### One line (Git Bash, MSYS, Cygwin, WSL with Windows interop)
 
@@ -83,6 +84,9 @@ https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xm
 ```
 
 - Chrome and Edge install it on their next start after the MSI.
+- Because it is self-hosted, each browser shows a one-time **Keep extension**
+  confirmation on unmanaged Windows. Click it once per browser; this is the
+  browser's security requirement, not a DownloadX prompt.
 - The popup has an intercept toggle, a native-host status light and an
   "Open DownloadX" button.
 - New browser downloads are cancelled and handed to the desktop app through

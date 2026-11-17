@@ -106,8 +106,10 @@ msiexec /x $entry.PSChildName /qn /norestart
   `docs/extension/downloadx.crx`, which jsDelivr serves as
   `application/x-chrome-extension`. Commit refreshed `docs/extension/` and
   `extensions/updates.xml` with every extension release.
-- After installing the MSI, the user only has to restart Chrome/Edge once. No
-  Web Store or developer mode is needed.
+- After installing the MSI, the user restarts Chrome/Edge once. Because the
+  extension is self-hosted, each browser asks **Keep extension** once on
+  unmanaged Windows; after that it is enabled and auto-updates. There is no Web
+  Store listing and no developer mode.
 - The extension cancels browser downloads and sends them through the native host
   to `%LOCALAPPDATA%\DownloadX\inbox`; the GUI watches that folder and queues
   them with 16 connections.
