@@ -37,8 +37,9 @@ BitTorrent — from one CLI or one native window.
 - **Native desktop UI** built with [MyGo](https://github.com/egoist/mygo) and
   [Lobe MyGo](https://github.com/lobehub/lobe-mygo): GPU-drawn, no webview, no
   HTML, no JavaScript. Light and dark follow the system.
-- **Chrome + Edge extension**, force-installed by the MSI and auto-updated from
-  a self-hosted manifest — no Web Store, no developer mode.
+- **Chrome + Edge extension**, registered by the MSI through the browsers'
+  external-extension registry and auto-updated from a self-hosted manifest — no
+  Web Store, no developer mode.
 - **Pure Go, no cgo.** The only non-stdlib downloader dependency is
   `anacrolix/torrent`, for BitTorrent.
 
@@ -54,9 +55,9 @@ The script downloads the latest MSI, asks Windows for administrator permission,
 and installs to `C:\Program Files\DownloadX`. Launch **DownloadX** from the Start
 menu, or run the CLI at `C:\Program Files\DownloadX\downloadx.exe`.
 
-**Restart Chrome and Edge once after installing.** The MSI registers a
-force-install policy for both browsers; the DownloadX extension then appears
-automatically and updates itself without the Web Store.
+**Restart Chrome and Edge once after installing.** The MSI registers the
+extension with both browsers' external-extension registry; DownloadX then
+appears automatically and updates itself without the Web Store.
 
 ### One line (Git Bash, MSYS, Cygwin, WSL with Windows interop)
 
@@ -70,12 +71,12 @@ Download **DownloadX-windows-amd64.msi** from
 [Releases](https://github.com/neko233-com/DownloadX/releases/latest) and open it.
 The installer is per-machine (UAC prompt), installs the CLI, desktop app and
 native messaging host, adds a Start-menu shortcut, and registers the Chrome/Edge
-extension policies.
+external extension.
 
 ### Browser extension
 
-The MSI sets `ExtensionInstallForcelist` for both Chromium browsers. They fetch
-the extension from this repository (no Web Store):
+The MSI writes the browsers' external-extension registry keys with an
+`update_url` pointing at this repository (no Web Store):
 
 ```
 https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml
@@ -89,7 +90,7 @@ https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xm
 - Right-click a link → **Download with DownloadX** also works.
 - Updates are browser-managed: bump the extension version, run
   `scripts\build-extension.ps1`, commit `docs/extension/`, and upload the CRX to
-  the release. The policy URL stays stable.
+  the release. The update URL stays stable.
 
 Extension ID: `pdlpjmbjgipkbjekncinhchgbahpgbng`. The signing key is local
 (`extensions/downloadx.pem`, untracked); see `extensions/README.md`.
@@ -239,10 +240,10 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.0
-git tag -a v0.2.0 -m "DownloadX 0.2.0"
-git push origin v0.2.0
-gh release create v0.2.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.1
+git tag -a v0.2.1 -m "DownloadX 0.2.1"
+git push origin v0.2.1
+gh release create v0.2.1 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
 The build scripts produce `dist\DownloadX-windows-amd64.msi` and

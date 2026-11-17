@@ -56,15 +56,26 @@
           <RegistryValue Type="string" Value="[INSTALLFOLDER]com.neko233.downloadx.json" />
         </RegistryKey>
       </Component>
-      <Component Id="ExtensionPolicies" Guid="96E98127-C3A3-44D6-A08A-EB7A031F06F4" Win64="yes">
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Policies\Google\Chrome\ExtensionInstallForcelist">
-          <RegistryValue Name="1" Type="string"
-                         Value="pdlpjmbjgipkbjekncinhchgbahpgbng;https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml"
+      <Component Id="ChromeExternalExtension" Guid="F7805A05-B0DA-4F10-BFBB-1596D8E2B9E7" Win64="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng">
+          <RegistryValue Name="update_url" Type="string"
+                         Value="https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml"
                          KeyPath="yes" />
         </RegistryKey>
-        <RegistryKey Root="HKLM" Key="SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist">
-          <RegistryValue Name="1" Type="string"
-                         Value="pdlpjmbjgipkbjekncinhchgbahpgbng;https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml" />
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Wow6432Node\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng">
+          <RegistryValue Name="update_url" Type="string"
+                         Value="https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml" />
+        </RegistryKey>
+      </Component>
+      <Component Id="EdgeExternalExtension" Guid="614C65C1-7FC5-4CDC-A564-BD883D7006C3" Win64="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Edge\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng">
+          <RegistryValue Name="update_url" Type="string"
+                         Value="https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml"
+                         KeyPath="yes" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\WOW6432Node\Microsoft\Edge\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng">
+          <RegistryValue Name="update_url" Type="string"
+                         Value="https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml" />
         </RegistryKey>
       </Component>
     </DirectoryRef>
@@ -90,7 +101,8 @@
       <ComponentRef Id="DownloadXHost" />
       <ComponentRef Id="NativeHostManifest" />
       <ComponentRef Id="NativeHostRegistration" />
-      <ComponentRef Id="ExtensionPolicies" />
+      <ComponentRef Id="ChromeExternalExtension" />
+      <ComponentRef Id="EdgeExternalExtension" />
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
   </Product>

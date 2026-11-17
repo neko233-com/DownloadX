@@ -144,7 +144,7 @@ RELEASE.md, AGENTS.md          manual release and agent instructions
 - `go 1.27.3` (MyGo needs it); `CGO_ENABLED=0`; supported release: Windows 10/11 x64.
 - Direct dependencies: stdlib plus `github.com/anacrolix/torrent` (BitTorrent), `github.com/egoist/mygo` (native UI) and `github.com/lobehub/lobe-mygo` (Lobe UI kit). No ffmpeg hard dependency.
 - No GitHub Actions/CI/CD. Tags and GitHub releases are created manually; see `RELEASE.md`.
-- Browser extension: fixed ID `pdlpjmbjgipkbjekncinhchgbahpgbng`, installed by Chrome/Edge policy from jsDelivr `docs/extension/updates.xml`; no Web Store. Signing key stays untracked.
+- Browser extension: fixed ID `pdlpjmbjgipkbjekncinhchgbahpgbng`, installed through the Chrome/Edge external-extension registry from jsDelivr `docs/extension/updates.xml`; no Web Store. Signing key stays untracked.
 - The MSI install path is fixed at `C:\Program Files\DownloadX` because the native messaging manifest contains that absolute path.
 - Default 16 connections; clamp to `[1,128]`. Minimum segment size 512 KiB.
 - State artifacts: `<dest>.downloadx` (JSON) and `<dest>.parts/` (directory); removed after success.
@@ -306,7 +306,7 @@ RELEASE.md, AGENTS.md          manual release and agent instructions
 **Interfaces:**
 - `scripts/build-msi.ps1 -Version X.Y.Z` → `dist\DownloadX-windows-amd64.msi` and `.sha256`.
 - Stable asset name `DownloadX-windows-amd64.msi`, so `releases/latest/download/DownloadX-windows-amd64.msi` always resolves.
-- MSI: per-machine, fixed `C:\Program Files\DownloadX`, CLI + GUI + native host, Start-menu shortcut, ARP entry, icon, Chrome/Edge native-messaging registration and force-install policies; WiX `WixUI_Minimal` wizard.
+- MSI: per-machine, fixed `C:\Program Files\DownloadX`, CLI + GUI + native host, Start-menu shortcut, ARP entry, icon, Chrome/Edge native-messaging registration and external-extension `update_url` entries; WiX `WixUI_Minimal` wizard.
 
 - [x] **Step 1: Write the WiX source** (per-machine Program Files install, CLI + GUI + host components, HKLM keypaths, Common Programs shortcut, license and icon) and build it with `candle`/`light`.
 - [x] **Step 2: Add `scripts/build-msi.ps1`** producing the stable MSI name and SHA256; verify with an administrative install (`msiexec /a`) that all executables are inside.
@@ -324,10 +324,10 @@ RELEASE.md, AGENTS.md          manual release and agent instructions
 - Fixed extension ID `pdlpjmbjgipkbjekncinhchgbahpgbng`, derived from the RSA public key; signing key `extensions/downloadx.pem` stays untracked.
 - Native messaging host `com.neko233.downloadx` → `C:\Program Files\DownloadX\downloadx-host.exe` → `%LOCALAPPDATA%\DownloadX\inbox`.
 - `downloadx-host` speaks the Chrome native-messaging length-prefixed JSON protocol; actions `ping`, `open`, `download`.
-- Auto-update: `ExtensionInstallForcelist` policy → jsDelivr `docs/extension/updates.xml` → `docs/extension/downloadx.crx` with `application/x-chrome-extension`.
+- Auto-update: Chrome/Edge external-extension registry → jsDelivr `docs/extension/updates.xml` → `docs/extension/downloadx.crx` with `application/x-chrome-extension`.
 
 - [x] **Step 1: Generate the RSA key, fixed extension ID, public key, PNG icons and the MV3 extension** that cancels browser downloads and hands URLs to native messaging.
 - [x] **Step 2: Implement the native host and inbox queue, launch the GUI detached, and make the desktop manager watch the inbox and enqueue with 16 connections.**
-- [x] **Step 3: Add the host, native-messaging registration and Chrome/Edge force-install policies to the MSI; lock the install directory so the native manifest path stays valid.**
+- [x] **Step 3: Add the host, native-messaging registration and Chrome/Edge external-extension `update_url` entries to the MSI; lock the install directory so the native manifest path stays valid.**
 - [x] **Step 4: Add `scripts/build-extension.ps1`** (Chrome pack, CRX/SHA256, refreshed `updates.xml` and `docs/extension/`) and verify the native host round-trip.
 - [x] **Step 5: Update docs for one-line install, browser restart, self-hosted updates, manual release; run tests, build the MSI and validate it.**

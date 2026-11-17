@@ -10,8 +10,8 @@ Instructions for coding agents working on DownloadX.
   and **Lobe MyGo** (`github.com/lobehub/lobe-mygo`). No webview, no HTML/CSS/JS
   for the app UI.
 - `downloadx-host`: native messaging host for the Chrome/Edge extension.
-- `extensions/downloadx`: MV3 extension, force-installed and auto-updated via
-  browser policies without the Web Store.
+- `extensions/downloadx`: MV3 extension, installed through the browsers'
+  external-extension registry and auto-updated without the Web Store.
 - MSI installer built with WiX Toolset 3.14.
 
 ## Hard rules
@@ -26,8 +26,8 @@ Instructions for coding agents working on DownloadX.
 5. **Do not change the extension ID** `pdlpjmbjgipkbjekncinhchgbahpgbng`.
    It is derived from `extensions/public-key.txt`. Changing it requires updating
    `extensions/downloadx/manifest.json`, `extensions/id.txt`,
-   `installer/com.neko233.downloadx.json`, and the policies in
-   `installer/DownloadX.wxs`/existing installs.
+   `installer/com.neko233.downloadx.json`, and the external-extension registry
+   entries in `installer/DownloadX.wxs`.
 6. **Never commit** `extensions/downloadx.pem` (signing key) or generated CRX
    files. Back up the key with release materials.
 7. The app UI must stay native MyGo + Lobe UI. Browser extension HTML/CSS/JS is
@@ -43,7 +43,7 @@ gofmt -w .
 go vet ./...
 go test ./...
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1   # if the extension changed
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.0
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.1
 ```
 
 Then install the MSI:
@@ -76,8 +76,9 @@ After a real install, verify:
 & "C:\Program Files\DownloadX\downloadx.exe" version
 Test-Path "C:\Program Files\DownloadX\downloadx-gui.exe"
 Test-Path "C:\Program Files\DownloadX\downloadx-host.exe"
-Get-ItemProperty "HKLM:\SOFTWARE\Policies\Google\Chrome\ExtensionInstallForcelist"
-Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist"
+Get-ItemProperty "HKLM:\SOFTWARE\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
+Get-ItemProperty "HKLM:\SOFTWARE\Wow6432Node\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Edge\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
 Get-ItemProperty "HKLM:\SOFTWARE\Google\Chrome\NativeMessagingHosts\com.neko233.downloadx"
 ```
 
@@ -98,7 +99,7 @@ msiexec /x $entry.PSChildName /qn /norestart
   `dist\DownloadX-extension.crx.sha256`, and refreshed `extensions/updates.xml`.
 - The MSI registers:
   - native messaging host `com.neko233.downloadx` for Chrome and Edge;
-  - `ExtensionInstallForcelist` policies for both browsers.
+  - external-extension `update_url` entries for both browsers.
 - Browser-managed auto-update uses
   `https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml`.
   The update manifest points at
@@ -117,15 +118,15 @@ Follow `RELEASE.md` exactly. In short:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.0
-git add -A; git commit -m "release: v0.2.0"; git push origin main
-git tag -a v0.2.0 -m "DownloadX 0.2.0"; git push origin v0.2.0
-gh release create v0.2.0 `
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.1
+git add -A; git commit -m "release: v0.2.1"; git push origin main
+git tag -a v0.2.1 -m "DownloadX 0.2.1"; git push origin v0.2.1
+gh release create v0.2.1 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 0.2.0" --notes "..."
+  --title "DownloadX 0.2.1" --notes "..."
 ```
 
 Then verify that

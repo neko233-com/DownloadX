@@ -38,16 +38,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
 
 This writes `dist\DownloadX-extension.crx`, its checksum, and refreshes
 `extensions/updates.xml` plus `docs/extension/updates.xml` and
-`docs/extension/downloadx.crx` (served by jsDelivr for the force-install
-policy). Commit the `docs/extension/` changes before tagging; browsers update
-from that copy.
+`docs/extension/downloadx.crx` (served by jsDelivr for the browsers'
+external-extension `update_url`). Commit the `docs/extension/` changes before
+tagging; browsers update from that copy.
 
 ## 4. Build the MSI
 
 Pick the version without a leading `v`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.0
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.1
 ```
 
 This produces:
@@ -59,8 +59,8 @@ dist\DownloadX-windows-amd64.msi.sha256
 
 The MSI is per-machine (`C:\Program Files\DownloadX`), installs the CLI, the
 desktop app and `downloadx-host.exe`, adds a Start-menu shortcut, registers the
-native messaging host for Chrome/Edge, and force-installs the extension through
-browser policies.
+native messaging host for Chrome/Edge, and adds the browsers'
+external-extension `update_url` entries.
 
 Validate the payload without installing:
 
@@ -86,21 +86,21 @@ Uninstall from **Settings → Apps → DownloadX**, or find the product code und
 
 ```powershell
 git add -A
-git commit -m "release: v0.2.0"
+git commit -m "release: v0.2.1"
 git push origin main
-git tag -a v0.2.0 -m "DownloadX 0.2.0"
-git push origin v0.2.0
+git tag -a v0.2.1 -m "DownloadX 0.2.1"
+git push origin v0.2.1
 ```
 
 ## 6. Create the GitHub release
 
 ```powershell
-gh release create v0.2.0 `
+gh release create v0.2.1 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 0.2.0" `
+  --title "DownloadX 0.2.1" `
   --notes "Windows x64 installer, Chrome/Edge extension, segmented HTTP/FTP, HLS, DASH, BitTorrent, and the native MyGo + Lobe UI desktop app."
 ```
 
@@ -139,6 +139,14 @@ $crx = "https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/do
 (Invoke-WebRequest $crx -Method Head -UseBasicParsing).Headers["Content-Type"]
 ```
 
+Check the browser registrations:
+
+```powershell
+Get-ItemProperty "HKLM:\SOFTWARE\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
+Get-ItemProperty "HKLM:\SOFTWARE\Wow6432Node\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Edge\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
+```
+
 Restart Chrome/Edge after installing the MSI. The extension appears without the
 Web Store; no developer mode is needed.
 
@@ -147,4 +155,4 @@ Web Store; no developer mode is needed.
 - GitHub Actions is disabled for this repository. Do not add `.github/workflows`.
 - The GUI and extension are Windows-only for now.
 - Keep `extensions/downloadx.pem` backed up: losing it changes the extension ID
-  and breaks force-install policies on existing machines.
+  and breaks the external-extension registrations on existing machines.

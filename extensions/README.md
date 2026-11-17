@@ -9,11 +9,11 @@ The MSI registers for both browsers:
 
 - a native messaging host (`com.neko233.downloadx`) pointing at
   `C:\Program Files\DownloadX\downloadx-host.exe`;
-- an `ExtensionInstallForcelist` policy that force-installs this extension from
-  `extensions/updates.xml` and keeps it updated.
+- an external-extension `update_url` pointing at `extensions/updates.xml`.
 
-Restart Chrome/Edge after installing DownloadX. The extension then appears
-automatically without the Web Store. Users can disable interception in the
+Restart Chrome/Edge after installing DownloadX. The browser installs the
+extension on its next start, without the Web Store or developer mode, and
+keeps it updated from the same manifest. Users can disable interception in the
 extension popup.
 
 ## How the hand-off works
