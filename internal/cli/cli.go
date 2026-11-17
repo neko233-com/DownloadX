@@ -10,7 +10,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/neko233-com/DownloadX/internal/progress"
 	"github.com/neko233-com/DownloadX/internal/runner"
 	"github.com/neko233-com/DownloadX/internal/version"
 )
@@ -90,17 +92,34 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	defer stop()
 
 	exit := 0
-	for _, src := range o.Sources {
+	for i, src := range o.Sources {
 		task := o.Task
 		task.URL = src
 		if len(o.Sources) > 1 && task.Dest != "" {
 			task.Dir = task.Dest
 			task.Dest = ""
 		}
-		if !o.Quiet {
-			fmt.Fprintf(stderr, "downloadx: fetching %s\n", src)
+
+		mode := progress.ModeAuto
+		out := stderr
+		switch {
+		case o.Quiet:
+			mode = progress.ModeQuiet
+		case o.JSON:
+			mode = progress.ModeJSON
+			out = stdout
 		}
+		rep := progress.New(out, mode)
+		rep.SetLabel(src)
+		task.Progress = rep.Update
+
+		if !o.Quiet && !o.JSON && len(o.Sources) > 1 {
+			fmt.Fprintf(stderr, "downloadx: [%d/%d] %s\n", i+1, len(o.Sources), src)
+		}
+
+		start := time.Now()
 		res, err := runner.Run(ctx, &task)
+		rep.Done(res, err)
 		if err != nil {
 			if ctx.Err() != nil || errors.Is(err, context.Canceled) {
 				fmt.Fprintln(stderr, "downloadx: interrupted; rerun the same command to resume")
@@ -110,11 +129,14 @@ func Main(args []string, stdout, stderr io.Writer) int {
 			exit = 1
 			continue
 		}
-		if !o.Quiet {
-			fmt.Fprintf(stderr, "downloadx: saved %s (%s)\n", res.Path, humanBytes(res.Bytes))
-		}
-		if o.JSON {
-			fmt.Fprintf(stdout, "{\"event\":\"done\",\"path\":%q,\"bytes\":%d}\n", res.Path, res.Bytes)
+		if !o.Quiet && !o.JSON {
+			elapsed := time.Since(start).Round(time.Millisecond)
+			fmt.Fprintf(stderr, "  %s  %s  %s\n", res.Path, humanBytes(res.Bytes), elapsed)
+			for _, f := range res.Files {
+				if f != res.Path {
+					fmt.Fprintf(stderr, "  related: %s\n", f)
+				}
+			}
 		}
 	}
 	return exit

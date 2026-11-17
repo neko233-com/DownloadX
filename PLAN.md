@@ -1,12 +1,14 @@
 # DownloadX Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** `downloadx` — an NDM-style, multi-connection download manager CLI in pure Go, supporting HTTP(S), FTP/FTPS, HLS, DASH and BitTorrent/magnet on Windows, macOS and Linux.
+**Goal:** `downloadx` — an NDM-style, multi-connection download manager with a CLI and a native desktop app, in pure Go, supporting HTTP(S), FTP/FTPS, HLS, DASH and BitTorrent/magnet on Windows, macOS and Linux.
 
-**Architecture:** A small `internal/engine` core owns task configuration, destination naming, resume state and protocol dispatch. Each protocol lives in its own package (`httpdl`, `ftp`, `hls`, `dash`, `bt`) and reports progress through one callback. `internal/cli` parses arguments and renders text/JSON progress. HTTP and FTP share the segmented-download resume model; HLS/DASH share a part-file pipeline in `internal/segdl`; BitTorrent is adapted through one narrow wrapper.
+**Architecture:** A small `internal/engine` core owns task configuration, destination naming and resume state. `internal/runner` dispatches to protocol packages (`httpdl`, `ftp`, `hls`, `dash`, `bt`) that report progress through one callback. `internal/cli` parses arguments and renders text/JSON progress; `internal/desktop` is a native MyGo + Lobe UI window over a two-worker queue manager. HTTP and FTP share the segmented-download resume model; HLS/DASH share a part-file pipeline in `internal/segdl`; BitTorrent is adapted through one narrow wrapper.
 
-**Tech Stack:** Go 1.27.0 standard library. BitTorrent uses `github.com/anacrolix/torrent` (pure Go, no cgo); everything else is stdlib. Optional `ffmpeg` is used only to mux separate DASH audio/video when present.
+**Tech Stack:** Go 1.27 standard library; `github.com/egoist/mygo` for the native, GPU-drawn desktop UI and `github.com/lobehub/lobe-mygo` for Lobe UI components and tokens (no webview, no HTML, no JavaScript); `github.com/anacrolix/torrent` for BitTorrent; no cgo. Optional `ffmpeg` is used only to mux separate DASH audio/video when present.
+
+**Status:** implemented — CLI, all five protocols, native GUI, tests, CI and release workflow.
 
 **Spec:** this document — the Design section below is the spec.
 
@@ -14,14 +16,15 @@
 
 ### Product
 
-- Public repo `neko233-com/DownloadX`, MIT. Binary and command name `downloadx` (lowercase).
-- One static binary, no runtime dependencies, no cgo, no telemetry.
+- Public repo `neko233-com/DownloadX`, MIT. CLI command `downloadx`, desktop app `downloadx-gui`.
+- One static binary per front end, no runtime dependencies, no cgo, no telemetry.
 - Default 16 parallel connections per download (`-x` overrides), NDM-style segmented transfers with resume.
 - Supported sources: `http://`, `https://` (including Range-less fallback), `ftp://`, `ftps://` (explicit TLS), HLS `.m3u8` (VOD), DASH `.mpd` (static), `magnet:` links and `.torrent` files.
 - Auto-detection by URL scheme, path extension and `Content-Type`; `--type` forces a protocol.
 - Resume works across process restarts. State lives beside the output file and is deleted on success.
 - Never overwrite an existing file silently; use resume when valid, otherwise pick `name (1).ext`.
 - Human output goes to stderr; `--json` emits JSON-lines progress on stdout. Exit codes: `0` success, `1` failure, `2` usage, `130` interrupted.
+- Native desktop UI in `downloadx-gui`, drawn by MyGo with Lobe MyGo components and tokens.
 
 ### CLI
 
@@ -56,6 +59,15 @@ downloadx version
 ```
 
 Flags may appear before or after positional sources. `--` ends flag parsing.
+
+### Native desktop app (`downloadx-gui`)
+
+- MyGo native UI (`github.com/egoist/mygo/ui`), drawn on the GPU: no webview, no HTML/CSS/JS, no front-end build. Lobe MyGo (`github.com/lobehub/lobe-mygo`) supplies the component kit and design tokens.
+- Window: 1180×820, hidden title bar with a view-drawn Lobe-style header, follows the system light/dark appearance, Lobe tokens for color, radii and typography.
+- Composer: URL / magnet / `.torrent` input; destination folder with the native folder picker; connection count; protocol override (Auto, HTTP, FTP, HLS, DASH, BitTorrent).
+- Queue: two downloads at once, newest first; status tags, progress bar, speed, ETA/segment counts, torrent peer count; cancel, retry, remove, copy path and reveal in the file manager.
+- The manager lives in `internal/desktop` (`Manager`, at most two workers, mutex-protected snapshots) and repaints the window from worker goroutines with `Window.Invalidate`.
+- Design previews are rendered headlessly by `TestPreviewImage` (`DOWNLOADX_PREVIEW=path.png`) and committed under `docs/`.
 
 ### Transfer behavior
 
@@ -98,15 +110,19 @@ Flags may appear before or after positional sources. `--` ends flag parsing.
 ### Repository layout
 
 ```
-cmd/downloadx/main.go          entrypoint, version wiring, signal handling
-internal/cli/                  argument parsing, run loop, progress rendering
-internal/engine/               Task/Progress/Result, dispatch, naming, state, limiter
+cmd/downloadx/main.go          CLI entrypoint, version wiring, signal handling
+cmd/downloadx-gui/main.go      native desktop entrypoint (MyGo window)
+internal/cli/                  argument parsing, run loop
+internal/runner/               protocol detection and dispatch
+internal/engine/               Task/Progress/Result, naming, resume state, limiter
 internal/httpdl/               HTTP(S) segmented downloader
 internal/ftp/                  FTP/FTPS client + segmented downloader
 internal/hls/                  HLS playlist parser + downloader
 internal/dash/                 MPD parser + downloader
 internal/segdl/                concurrent part fetch/rename/concat pipeline
 internal/bt/                   anacrolix/torrent adapter
+internal/progress/             TTY/plain/JSON reporters
+internal/desktop/              MyGo + Lobe UI window, queue manager, previews
 internal/version/              version variables (ldflags)
 .github/workflows/ci.yml       vet + test + build (linux/windows/macos)
 .github/workflows/release.yml  tag → cross-platform binaries + GitHub release
@@ -114,9 +130,9 @@ internal/version/              version variables (ldflags)
 
 ## Global Constraints
 
-- Module `github.com/neko233-com/DownloadX`; repo `DownloadX` (case-sensitive); command `downloadx`.
-- `go 1.27.0`; `CGO_ENABLED=0`; cross-platform Windows/macOS/Linux (amd64 + arm64 for darwin/linux, amd64 for windows).
-- Stdlib only except `github.com/anacrolix/torrent` for BitTorrent. No ffmpeg hard dependency.
+- Module `github.com/neko233-com/DownloadX`; repo `DownloadX` (case-sensitive); commands `downloadx` and `downloadx-gui`.
+- `go 1.27.3` (MyGo needs it); `CGO_ENABLED=0`; cross-platform Windows/macOS/Linux (amd64 + arm64 for darwin/linux, amd64 for windows).
+- Direct dependencies: stdlib plus `github.com/anacrolix/torrent` (BitTorrent), `github.com/egoist/mygo` (native UI) and `github.com/lobehub/lobe-mygo` (Lobe UI kit). No ffmpeg hard dependency.
 - Default 16 connections; clamp to `[1,128]`. Minimum segment size 512 KiB.
 - State artifacts: `<dest>.downloadx` (JSON) and `<dest>.parts/` (directory); removed after success.
 - Never overwrite an existing file unless resuming it. Sanitized names must stay inside the destination directory.
@@ -149,13 +165,13 @@ internal/version/              version variables (ldflags)
   - `engine.NewLimiter(bytesPerSec int64) *Limiter` with `WaitN(ctx context.Context, n int) error`
   - `cli.Parse(args []string) (*Options, error)`, `cli.Main(args []string, stdout, stderr io.Writer) int`
 
-- [ ] **Step 1: Write failing parser tests** covering defaults (`Connections == 16`, type auto, retries 3, timeout 30s), flags after URLs, repeated `-H`, `--` terminator, unknown flag error, `-x 0` rejected, input file lines.
-- [ ] **Step 2: Run `go test ./internal/cli`; expect failures.**
-- [ ] **Step 3: Implement `cli.Parse`** (hand-written parser, help text), `engine` types, naming helpers, state JSON, limiter.
-- [ ] **Step 4: Write failing naming/state/limiter tests**: traversal names (`..\..\evil` → inside dir), reserved Windows names, disposition `filename*`, unique collision suffix, state round-trip and mismatch rejection, limiter waits ≈ n/rate.
-- [ ] **Step 5: Implement helpers until tests pass.**
-- [ ] **Step 6: Create `cmd/downloadx/main.go`** with signal-aware context, `version`, exit codes; CI workflow running vet/test/build.
-- [ ] **Step 7: `go vet ./... && go test ./... && go build ./cmd/downloadx`; commit `feat: bootstrap CLI, engine skeleton, naming and resume state`.**
+- [x] **Step 1: Write failing parser tests** covering defaults (`Connections == 16`, type auto, retries 3, timeout 30s), flags after URLs, repeated `-H`, `--` terminator, unknown flag error, `-x 0` rejected, input file lines.
+- [x] **Step 2: Run `go test ./internal/cli`; expect failures.**
+- [x] **Step 3: Implement `cli.Parse`** (hand-written parser, help text), `engine` types, naming helpers, state JSON, limiter.
+- [x] **Step 4: Write failing naming/state/limiter tests**: traversal names (`..\..\evil` → inside dir), reserved Windows names, disposition `filename*`, unique collision suffix, state round-trip and mismatch rejection, limiter waits ≈ n/rate.
+- [x] **Step 5: Implement helpers until tests pass.**
+- [x] **Step 6: Create `cmd/downloadx/main.go`** with signal-aware context, `version`, exit codes; CI workflow running vet/test/build.
+- [x] **Step 7: `go vet ./... && go test ./... && go build ./cmd/downloadx`; commit `feat: bootstrap CLI, engine skeleton, naming and resume state`.**
 
 ### Task 2: HTTP segmented downloader
 
@@ -166,11 +182,11 @@ internal/version/              version variables (ldflags)
 - Consumes: engine types, state, limiter.
 - Produces: `httpdl.Download(ctx context.Context, t *engine.Task, client *http.Client) (*engine.Result, error)`; `httpx.NewClient(t *engine.Task) *http.Client`.
 
-- [ ] **Step 1: Write failing `httptest` tests** for: 16-segment byte-identical download, fewer segments for small files, no-Range fallback, 404 error, redirect, custom headers/cookie/basic auth received, `Content-Disposition` name, cancel→state saved→resume→byte-identical, 200-during-segmented fallback.
-- [ ] **Step 2: Run tests; expect compilation failure.**
-- [ ] **Step 3: Implement probe, segmentation, worker pool, retries, checkpointing, single-stream fallback, limiter, progress.**
-- [ ] **Step 4: Run tests until green; add race run `go test -race ./internal/httpdl`.**
-- [ ] **Step 5: Commit `feat: segmented HTTP downloader with resume`.**
+- [x] **Step 1: Write failing `httptest` tests** for: 16-segment byte-identical download, fewer segments for small files, no-Range fallback, 404 error, redirect, custom headers/cookie/basic auth received, `Content-Disposition` name, cancel→state saved→resume→byte-identical, 200-during-segmented fallback.
+- [x] **Step 2: Run tests; expect compilation failure.**
+- [x] **Step 3: Implement probe, segmentation, worker pool, retries, checkpointing, single-stream fallback, limiter, progress.**
+- [x] **Step 4: Run tests until green; add race run `go test -race ./internal/httpdl`.**
+- [x] **Step 5: Commit `feat: segmented HTTP downloader with resume`.**
 
 ### Task 3: FTP/FTPS client and downloader
 
@@ -181,10 +197,10 @@ internal/version/              version variables (ldflags)
 - Consumes: engine types/state/limiter.
 - Produces: `ftp.Download(ctx context.Context, t *engine.Task, rawURL *url.URL) (*engine.Result, error)`; internal `Session` with `Login`, `Size`, `ModTime`, `OpenRanged(ctx, path string, offset int64) (io.ReadCloser, error)`, `Close`.
 
-- [ ] **Step 1: Write failing parser tests** for single/multi-line replies, PASV/EPSV parsing, FTP URL parsing (credentials, escaping, defaults).
-- [ ] **Step 2: Write an in-process scripted FTP test server** (USER/PASS/TYPE/PASV/SIZE/MDTM/REST/RETR/QUIT) and failing tests for single and 4-connection segmented downloads + resume.
-- [ ] **Step 3: Implement minimal client and downloader; explicit TLS path.**
-- [ ] **Step 4: Run `go test ./internal/ftp`; commit `feat: FTP/FTPS downloader with segmented transfers`.**
+- [x] **Step 1: Write failing parser tests** for single/multi-line replies, PASV/EPSV parsing, FTP URL parsing (credentials, escaping, defaults).
+- [x] **Step 2: Write an in-process scripted FTP test server** (USER/PASS/TYPE/PASV/SIZE/MDTM/REST/RETR/QUIT) and failing tests for single and 4-connection segmented downloads + resume.
+- [x] **Step 3: Implement minimal client and downloader; explicit TLS path.**
+- [x] **Step 4: Run `go test ./internal/ftp`; commit `feat: FTP/FTPS downloader with segmented transfers`.**
 
 ### Task 4: HLS parser and downloader
 
@@ -195,10 +211,10 @@ internal/version/              version variables (ldflags)
 - Consumes: engine types, httpx client.
 - Produces: `hls.Parse(playlistURL string, data []byte) (*Playlist, error)`; `hls.Download(ctx context.Context, t *engine.Task, client *http.Client) (*engine.Result, error)`; `segdl.Run(ctx, jobs, partsDir, conns, progress) ([]string, error)`, `segdl.Concat(files []string, dest string) error`.
 
-- [ ] **Step 1: Write failing parser tests** for master variant selection, quoted attributes, key/map/byterange, relative URI resolution, live rejection.
-- [ ] **Step 2: Write failing `httptest` downloader tests**: 10-segment VOD → exact concatenation, AES-128 decryption, byterange requests, best/worst quality, resume after partial parts.
-- [ ] **Step 3: Implement parser, segdl pipeline, AES decryption, concatenation, manifest resume.**
-- [ ] **Step 4: Run `go test ./internal/hls ./internal/segdl`; commit `feat: HLS VOD downloader`.**
+- [x] **Step 1: Write failing parser tests** for master variant selection, quoted attributes, key/map/byterange, relative URI resolution, live rejection.
+- [x] **Step 2: Write failing `httptest` downloader tests**: 10-segment VOD → exact concatenation, AES-128 decryption, byterange requests, best/worst quality, resume after partial parts.
+- [x] **Step 3: Implement parser, segdl pipeline, AES decryption, concatenation, manifest resume.**
+- [x] **Step 4: Run `go test ./internal/hls ./internal/segdl`; commit `feat: HLS VOD downloader`.**
 
 ### Task 5: DASH parser and downloader
 
@@ -209,10 +225,10 @@ internal/version/              version variables (ldflags)
 - Consumes: engine types, httpx, segdl.
 - Produces: `dash.Parse(mpdURL string, data []byte) (*MPD, error)`; `dash.PickRepresentations(*MPD) (video, audio *Representation, err error)`; `dash.Download(ctx, t, client) (*engine.Result, error)`.
 
-- [ ] **Step 1: Write failing MPD tests**: SegmentTemplate number/time expansion with `%05d`, SegmentTimeline with `r`, SegmentList, BaseURL inheritance, DRM detection, dynamic rejection, best video+audio selection.
-- [ ] **Step 2: Write failing integration test** with `httptest` serving init + media segments; assert muxed single-file output and separate audio/video naming when ffmpeg is absent.
-- [ ] **Step 3: Implement parser, URL resolution, segment planning, download, optional ffmpeg mux.**
-- [ ] **Step 4: Run `go test ./internal/dash`; commit `feat: DASH static downloader`.**
+- [x] **Step 1: Write failing MPD tests**: SegmentTemplate number/time expansion with `%05d`, SegmentTimeline with `r`, SegmentList, BaseURL inheritance, DRM detection, dynamic rejection, best video+audio selection.
+- [x] **Step 2: Write failing integration test** with `httptest` serving init + media segments; assert muxed single-file output and separate audio/video naming when ffmpeg is absent.
+- [x] **Step 3: Implement parser, URL resolution, segment planning, download, optional ffmpeg mux.**
+- [x] **Step 4: Run `go test ./internal/dash`; commit `feat: DASH static downloader`.**
 
 ### Task 6: BitTorrent support
 
@@ -222,10 +238,10 @@ internal/version/              version variables (ldflags)
 **Interfaces:**
 - Produces: `bt.Download(ctx context.Context, t *engine.Task) (*engine.Result, error)`.
 
-- [ ] **Step 1: Add `github.com/anacrolix/torrent`; verify API with `go doc`.**
-- [ ] **Step 2: Write failing tests** for input classification (magnet vs `.torrent` path) and, guarded by `testing.Short`, a local seeder/leecher round trip.
-- [ ] **Step 3: Implement client config (data dir, port, seed), metadata wait, progress polling, completion.**
-- [ ] **Step 4: Run `go test ./internal/bt`; commit `feat: BitTorrent and magnet downloads`.**
+- [x] **Step 1: Add `github.com/anacrolix/torrent`; verify API with `go doc`.**
+- [x] **Step 2: Write failing tests** for input classification (magnet vs `.torrent` path) and, guarded by `testing.Short`, a local seeder/leecher round trip.
+- [x] **Step 3: Implement client config (data dir, port, seed), metadata wait, progress polling, completion.**
+- [x] **Step 4: Run `go test ./internal/bt`; commit `feat: BitTorrent and magnet downloads`.**
 
 ### Task 7: Dispatcher, CLI run loop, progress rendering
 
@@ -237,9 +253,9 @@ internal/version/              version variables (ldflags)
 - Consumes: all protocol downloaders.
 - Produces: working `downloadx` end-to-end.
 
-- [ ] **Step 1: Write failing tests** for dispatch (magnet→bt, ftp→ftp, `.m3u8`→hls, `--type` override), progress JSON line schema, TTY/plain selection.
-- [ ] **Step 2: Implement dispatch, sequential batch run, reporter lifecycle, interrupted exit code 130, per-task summary.**
-- [ ] **Step 3: `go test ./... && go build ./cmd/downloadx`; commit `feat: wire CLI, dispatcher and progress output`.**
+- [x] **Step 1: Write failing tests** for dispatch (magnet→bt, ftp→ftp, `.m3u8`→hls, `--type` override), progress JSON line schema, TTY/plain selection.
+- [x] **Step 2: Implement dispatch, sequential batch run, reporter lifecycle, interrupted exit code 130, per-task summary.**
+- [x] **Step 3: `go test ./... && go build ./cmd/downloadx`; commit `feat: wire CLI, dispatcher and progress output`.**
 
 ### Task 8: Docs, release pipeline, end-to-end verification
 
@@ -247,7 +263,23 @@ internal/version/              version variables (ldflags)
 - Modify: `README.md`, `PLAN.md`
 - Create: `.github/workflows/release.yml`
 
-- [ ] **Step 1: Write README** (install, usage table, protocol matrix, examples, architecture, limitations, roadmap).
-- [ ] **Step 2: Write release workflow** building windows/amd64, linux/amd64+arm64, darwin/amd64+arm64 with `CGO_ENABLED=0` and uploading archives on `v*` tags.
-- [ ] **Step 3: Verify against live endpoints** (`https://speed.cloudflare.com/__down?bytes=...`, a public HLS test stream) plus `go test ./...`, `go vet ./...`, `go build`.
-- [ ] **Step 4: Tick completed boxes in this plan; commit and push.**
+- [x] **Step 1: Write README** (install, usage table, protocol matrix, examples, architecture, limitations, roadmap).
+- [x] **Step 2: Write release workflow** building windows/amd64, linux/amd64+arm64, darwin/amd64+arm64 with `CGO_ENABLED=0` and uploading archives on `v*` tags.
+- [x] **Step 3: Verify against live endpoints** (`https://speed.cloudflare.com/__down?bytes=...`, a public HLS test stream) plus `go test ./...`, `go vet ./...`, `go build`.
+- [x] **Step 4: Tick completed boxes in this plan; commit and push.**
+
+### Task 9: Native GUI with MyGo + Lobe UI
+
+**Files:**
+- Create: `cmd/downloadx-gui/main.go`, `internal/desktop/manager.go`, `internal/desktop/view.go`, `internal/desktop/manager_test.go`, `internal/desktop/view_test.go`, `internal/desktop/preview_test.go`, `mygo.json`, `docs/gui-preview-dark.png`, `docs/gui-preview-light.png`
+
+**Interfaces:**
+- `desktop.New() *App`; `App.Attach(*mygo.Window)`; `App.View(*ui.Context)`; `App.Stop()`
+- `desktop.Manager` with `Add(Request) (*Job, error)`, `Cancel(id)`, `Retry(id) error`, `Remove(id)`, `ClearFinished()`, `Snapshot() []Job`, `SetOnUpdate(func())`
+- `Request{URL, Dir string; Connections int; Type engine.Type}`
+
+- [x] **Step 1: Add MyGo and Lobe MyGo; inspect component APIs and tokens.**
+- [x] **Step 2: Implement the two-worker queue manager on top of `internal/runner`, with progress, speed, cancel, retry and cleanup.**
+- [x] **Step 3: Build the Lobe-style window: hidden title bar, hero, composer (URL, folder picker, connections, protocol), queue cards, empty state, toasts.**
+- [x] **Step 4: Add a headless `ui.Tester` build test and a preview renderer that writes `docs/gui-preview-{dark,light}.png` from fake jobs.**
+- [x] **Step 5: `go test ./...`, `go vet ./...`, build both commands; commit.**
