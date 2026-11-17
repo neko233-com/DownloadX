@@ -246,6 +246,30 @@ func TestNoRangeFallbackToStream(t *testing.T) {
 	}
 }
 
+func TestUnknownTotalStreams(t *testing.T) {
+	data := testData(128 << 10)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") != "" {
+			w.Header().Set("Content-Range", "bytes 0-0/*")
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(data[:1])
+			return
+		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		_, _ = w.Write(data)
+	}))
+	defer srv.Close()
+
+	res, err := Download(context.Background(), newTask(srv, t.TempDir(), 8))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(res.Path)
+	if !bytes.Equal(got, data) {
+		t.Fatalf("content mismatch: got %d bytes", len(got))
+	}
+}
+
 func TestRangeIgnoredMidTransfer(t *testing.T) {
 	data := testData(2 << 20)
 	h := &rangeServer{data: data, ranges: true, ignoreRangeAfter: 1}

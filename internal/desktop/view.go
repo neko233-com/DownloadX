@@ -139,7 +139,7 @@ func (a *App) composer(c *ui.Context, tk *theme.Tokens) {
 		Padding(16).Gap(12).Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			textField(c, tk, &a.url,
-				"https://…  ·  ftp://…  ·  magnet:?xt=…  ·  file.torrent",
+				"Paste a URL, magnet link or .torrent path",
 				lucide.Link2(), 40, 14).Grow(1).Basis(0)
 			if action.Button(c, "Download", action.ButtonProps{
 				Variant: action.Primary,

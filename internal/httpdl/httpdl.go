@@ -102,6 +102,8 @@ func probe(ctx context.Context, t *engine.Task, client *http.Client) (*probeResu
 		if total >= 0 {
 			p.size = total
 			p.ranges = true
+		} else {
+			p.size = -1
 		}
 	case http.StatusOK:
 		p.size = resp.ContentLength
