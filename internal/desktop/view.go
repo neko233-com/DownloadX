@@ -44,6 +44,13 @@ func New() *App {
 func (a *App) Attach(win *mygo.Window) {
 	a.win = win
 	a.manager.SetOnUpdate(func() { win.Invalidate() })
+	dir := a.dir
+	if dir == "" {
+		if downloads, err := mygo.App.Path(mygo.PathDownloads); err == nil {
+			dir = downloads
+		}
+	}
+	a.manager.StartInbox(dir)
 }
 
 // Window returns the app window, if it is created.

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/DownloadX/internal/engine"
+	"github.com/neko233-com/DownloadX/internal/inbox"
 )
 
 func waitStatus(t *testing.T, m *Manager, id string, want Status) Job {
@@ -117,4 +118,44 @@ func TestManagerClearFinished(t *testing.T) {
 	if err := m.Retry("missing"); err == nil {
 		t.Fatal("want retry error")
 	}
+}
+
+func TestManagerBrowserInbox(t *testing.T) {
+	t.Setenv("LOCALAPPDATA", t.TempDir())
+	payload := bytes.Repeat([]byte("browser"), 4096)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "28672")
+		_, _ = w.Write(payload)
+	}))
+	defer srv.Close()
+
+	if err := inbox.Enqueue(inbox.Request{URL: srv.URL + "/from-browser.bin"}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager(1)
+	defer m.Stop()
+	dir := t.TempDir()
+	m.StartInbox(dir)
+
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		for _, j := range m.Snapshot() {
+			if j.Status == StatusDone {
+				got, err := os.ReadFile(j.Path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(got, payload) {
+					t.Fatal("content mismatch")
+				}
+				if _, err := inbox.Pending(); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("browser download never finished")
 }

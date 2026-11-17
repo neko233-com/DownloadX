@@ -37,6 +37,8 @@ BitTorrent — from one CLI or one native window.
 - **Native desktop UI** built with [MyGo](https://github.com/egoist/mygo) and
   [Lobe MyGo](https://github.com/lobehub/lobe-mygo): GPU-drawn, no webview, no
   HTML, no JavaScript. Light and dark follow the system.
+- **Chrome + Edge extension**, force-installed by the MSI and auto-updated from
+  a self-hosted manifest — no Web Store, no developer mode.
 - **Pure Go, no cgo.** The only non-stdlib downloader dependency is
   `anacrolix/torrent`, for BitTorrent.
 
@@ -52,6 +54,10 @@ The script downloads the latest MSI, asks Windows for administrator permission,
 and installs to `C:\Program Files\DownloadX`. Launch **DownloadX** from the Start
 menu, or run the CLI at `C:\Program Files\DownloadX\downloadx.exe`.
 
+**Restart Chrome and Edge once after installing.** The MSI registers a
+force-install policy for both browsers; the DownloadX extension then appears
+automatically and updates itself without the Web Store.
+
 ### One line (Git Bash, MSYS, Cygwin, WSL with Windows interop)
 
 ```sh
@@ -62,8 +68,31 @@ curl -fsSL https://raw.githubusercontent.com/neko233-com/DownloadX/main/install.
 
 Download **DownloadX-windows-amd64.msi** from
 [Releases](https://github.com/neko233-com/DownloadX/releases/latest) and open it.
-The installer is per-machine (UAC prompt), installs both executables, and adds a
-Start-menu shortcut.
+The installer is per-machine (UAC prompt), installs the CLI, desktop app and
+native messaging host, adds a Start-menu shortcut, and registers the Chrome/Edge
+extension policies.
+
+### Browser extension
+
+The MSI sets `ExtensionInstallForcelist` for both Chromium browsers. They fetch
+the extension from this repository (no Web Store):
+
+```
+https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml
+```
+
+- Chrome and Edge install it on their next start after the MSI.
+- The popup has an intercept toggle, a native-host status light and an
+  "Open DownloadX" button.
+- New browser downloads are cancelled and handed to the desktop app through
+  `downloadx-host.exe` and `%LOCALAPPDATA%\DownloadX\inbox`.
+- Right-click a link → **Download with DownloadX** also works.
+- Updates are browser-managed: bump the extension version, run
+  `scripts\build-extension.ps1`, commit `docs/extension/`, and upload the CRX to
+  the release. The policy URL stays stable.
+
+Extension ID: `pdlpjmbjgipkbjekncinhchgbahpgbng`. The signing key is local
+(`extensions/downloadx.pem`, untracked); see `extensions/README.md`.
 
 ### Build from source
 
@@ -209,22 +238,26 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 [RELEASE.md](RELEASE.md) for the checklist. In short:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.1.0
-git tag -a v0.1.0 -m "DownloadX 0.1.0"
-git push origin v0.1.0
-gh release create v0.1.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.0
+git tag -a v0.2.0 -m "DownloadX 0.2.0"
+git push origin v0.2.0
+gh release create v0.2.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
-The build script produces `dist\DownloadX-windows-amd64.msi` with a stable asset
-name, so the `releases/latest/download/DownloadX-windows-amd64.msi` URL used by
-the install scripts always works. It requires Go 1.27.3+ and WiX Toolset 3.14
-(`candle.exe`, `light.exe`).
+The build scripts produce `dist\DownloadX-windows-amd64.msi` and
+`dist\DownloadX-extension.crx` with stable asset names. The install scripts use
+`releases/latest/download/DownloadX-windows-amd64.msi`; browsers use the
+jsDelivr copy of `docs/extension/updates.xml` and `downloadx.crx`. Commit the
+refreshed `extensions/updates.xml` and `docs/extension/` with the release. The
+MSI build requires Go 1.27.3+ and WiX Toolset 3.14 (`candle.exe`, `light.exe`).
 
 ## Architecture
 
 ```
 cmd/downloadx              CLI entrypoint
 cmd/downloadx-gui          native desktop entrypoint
+cmd/downloadx-host         browser native messaging host
 internal/cli               argument parsing, run loop
 internal/runner            protocol detection and dispatch
 internal/httpdl            segmented HTTP(S) downloader
@@ -236,9 +269,13 @@ internal/bt                anacrolix/torrent adapter
 internal/engine            task model, naming, resume state, rate limiter
 internal/progress          TTY / plain / JSON progress reporters
 internal/desktop           MyGo + Lobe UI window, queue manager
-installer/                 WiX source, license, icon
+internal/inbox             browser-to-desktop request queue
+extensions/downloadx       Chrome/Edge MV3 extension
+installer/                 WiX source, native host manifest, icon and license
 scripts/build-msi.ps1      Windows MSI build
+scripts/build-extension.ps1 CRX pack + update manifest
 install.ps1, install.sh    one-line installers
+docs/extension/            self-hosted CRX + updates.xml for browsers
 ```
 
 ## Development

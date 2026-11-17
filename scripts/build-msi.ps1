@@ -63,9 +63,12 @@ go build -trimpath -tags=mygo_nowebview -ldflags $ldflags -o (Join-Path $payload
 if ($LASTEXITCODE -ne 0) { throw "go build downloadx failed" }
 go build -trimpath -tags=mygo_nowebview -ldflags $ldflags -o (Join-Path $payload "downloadx-gui.exe") ./cmd/downloadx-gui
 if ($LASTEXITCODE -ne 0) { throw "go build downloadx-gui failed" }
+go build -trimpath -ldflags $ldflags -o (Join-Path $payload "downloadx-host.exe") ./cmd/downloadx-host
+if ($LASTEXITCODE -ne 0) { throw "go build downloadx-host failed" }
 
 $icon = Join-Path $root "assets\downloadx.ico"
 $license = Join-Path $root "installer\License.rtf"
+$manifest = Join-Path $root "installer\com.neko233.downloadx.json"
 $wxs = Join-Path $root "installer\DownloadX.wxs"
 $wixobj = Join-Path $obj "DownloadX.wixobj"
 $msi = Join-Path $OutDir "DownloadX-windows-amd64.msi"
@@ -76,6 +79,7 @@ Write-Host "Compiling WiX..."
     "-dPayloadDir=$payload" `
     "-dIconFile=$icon" `
     "-dLicenseFile=$license" `
+    "-dManifestFile=$manifest" `
     -out $wixobj $wxs
 if ($LASTEXITCODE -ne 0) { throw "candle failed" }
 

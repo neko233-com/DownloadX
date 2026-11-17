@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.27 standard library; `github.com/egoist/mygo` for the native, GPU-drawn desktop UI and `github.com/lobehub/lobe-mygo` for Lobe UI components and tokens (no webview, no HTML, no JavaScript); `github.com/anacrolix/torrent` for BitTorrent; no cgo. Optional `ffmpeg` is used only to mux separate DASH audio/video when present.
 
-**Status:** implemented — Windows CLI + MSI, all five protocols, native GUI, tests, manual releases; no GitHub Actions.
+**Status:** implemented — Windows CLI + MSI, all five protocols, native GUI, Chrome/Edge extension with store-free auto-update, tests, manual releases; no GitHub Actions.
 
 **Spec:** this document — the Design section below is the spec.
 
@@ -114,6 +114,7 @@ Flags may appear before or after positional sources. `--` ends flag parsing.
 ```
 cmd/downloadx/main.go          CLI entrypoint, version wiring, signal handling
 cmd/downloadx-gui/main.go      native desktop entrypoint (MyGo window)
+cmd/downloadx-host/            Chrome/Edge native messaging host
 internal/cli/                  argument parsing, run loop
 internal/runner/               protocol detection and dispatch
 internal/engine/               Task/Progress/Result, naming, resume state, limiter
@@ -125,11 +126,16 @@ internal/segdl/                concurrent part fetch/rename/concat pipeline
 internal/bt/                   anacrolix/torrent adapter
 internal/progress/             TTY/plain/JSON reporters
 internal/desktop/              MyGo + Lobe UI window, queue manager, previews
+internal/inbox/                browser-to-desktop request queue
 internal/version/              version variables (ldflags)
-installer/                     WiX source, icon and license RTF
+extensions/downloadx/          Chrome/Edge MV3 extension
+extensions/README.md           extension ID, key and update notes
+docs/extension/                self-hosted CRX and updates.xml
+installer/                     WiX source, native manifest, icon and license RTF
 scripts/build-msi.ps1          Windows x64 MSI build
+scripts/build-extension.ps1    CRX pack + update manifest
 install.ps1, install.sh        one-line installers
-RELEASE.md                     manual tag/release checklist
+RELEASE.md, AGENTS.md          manual release and agent instructions
 ```
 
 ## Global Constraints
@@ -138,6 +144,8 @@ RELEASE.md                     manual tag/release checklist
 - `go 1.27.3` (MyGo needs it); `CGO_ENABLED=0`; supported release: Windows 10/11 x64.
 - Direct dependencies: stdlib plus `github.com/anacrolix/torrent` (BitTorrent), `github.com/egoist/mygo` (native UI) and `github.com/lobehub/lobe-mygo` (Lobe UI kit). No ffmpeg hard dependency.
 - No GitHub Actions/CI/CD. Tags and GitHub releases are created manually; see `RELEASE.md`.
+- Browser extension: fixed ID `pdlpjmbjgipkbjekncinhchgbahpgbng`, installed by Chrome/Edge policy from jsDelivr `docs/extension/updates.xml`; no Web Store. Signing key stays untracked.
+- The MSI install path is fixed at `C:\Program Files\DownloadX` because the native messaging manifest contains that absolute path.
 - Default 16 connections; clamp to `[1,128]`. Minimum segment size 512 KiB.
 - State artifacts: `<dest>.downloadx` (JSON) and `<dest>.parts/` (directory); removed after success.
 - Never overwrite an existing file unless resuming it. Sanitized names must stay inside the destination directory.
@@ -298,10 +306,28 @@ RELEASE.md                     manual tag/release checklist
 **Interfaces:**
 - `scripts/build-msi.ps1 -Version X.Y.Z` → `dist\DownloadX-windows-amd64.msi` and `.sha256`.
 - Stable asset name `DownloadX-windows-amd64.msi`, so `releases/latest/download/DownloadX-windows-amd64.msi` always resolves.
-- MSI: per-machine, `C:\Program Files\DownloadX`, both executables, Start-menu shortcut, ARP entry, icon; WiX `WixUI_InstallDir` wizard.
+- MSI: per-machine, fixed `C:\Program Files\DownloadX`, CLI + GUI + native host, Start-menu shortcut, ARP entry, icon, Chrome/Edge native-messaging registration and force-install policies; WiX `WixUI_Minimal` wizard.
 
-- [x] **Step 1: Write the WiX source** (per-machine Program Files install, CLI + GUI components, HKLM keypaths, Common Programs shortcut, license and icon) and build it with `candle`/`light`.
-- [x] **Step 2: Add `scripts/build-msi.ps1`** producing the stable MSI name and SHA256; verify with an administrative install (`msiexec /a`) that both executables are inside.
+- [x] **Step 1: Write the WiX source** (per-machine Program Files install, CLI + GUI + host components, HKLM keypaths, Common Programs shortcut, license and icon) and build it with `candle`/`light`.
+- [x] **Step 2: Add `scripts/build-msi.ps1`** producing the stable MSI name and SHA256; verify with an administrative install (`msiexec /a`) that all executables are inside.
 - [x] **Step 3: Add `install.ps1` and `install.sh`** that download the latest MSI and run it with UAC elevation; sh works in Git Bash/MSYS/Cygwin/WSL and refuses non-Windows hosts.
-- [x] **Step 4: Delete GitHub workflows and disable repository Actions; document manual tags/releases in `RELEASE.md` and README.**
+- [x] **Step 4: Delete GitHub workflows and disable repository Actions; document manual tags/releases in `RELEASE.md`, `AGENTS.md` and README.**
 - [x] **Step 5: Update `go vet`/`go test`/builds and commit; tag and publish the release manually.**
+
+### Task 11: Chrome/Edge extension with store-free auto-update
+
+**Files:**
+- Create: `extensions/downloadx/` (MV3 manifest, service worker, popup, icons), `extensions/id.txt`, `extensions/public-key.txt`, `extensions/README.md`, `cmd/downloadx-host/`, `internal/inbox/`, `scripts/build-extension.ps1`, `docs/extension/`, `installer/com.neko233.downloadx.json`
+- Modify: `internal/desktop/manager.go`, `internal/desktop/view.go`, `installer/DownloadX.wxs`, `scripts/build-msi.ps1`, `README.md`, `RELEASE.md`, `AGENTS.md`
+
+**Interfaces:**
+- Fixed extension ID `pdlpjmbjgipkbjekncinhchgbahpgbng`, derived from the RSA public key; signing key `extensions/downloadx.pem` stays untracked.
+- Native messaging host `com.neko233.downloadx` → `C:\Program Files\DownloadX\downloadx-host.exe` → `%LOCALAPPDATA%\DownloadX\inbox`.
+- `downloadx-host` speaks the Chrome native-messaging length-prefixed JSON protocol; actions `ping`, `open`, `download`.
+- Auto-update: `ExtensionInstallForcelist` policy → jsDelivr `docs/extension/updates.xml` → `docs/extension/downloadx.crx` with `application/x-chrome-extension`.
+
+- [x] **Step 1: Generate the RSA key, fixed extension ID, public key, PNG icons and the MV3 extension** that cancels browser downloads and hands URLs to native messaging.
+- [x] **Step 2: Implement the native host and inbox queue, launch the GUI detached, and make the desktop manager watch the inbox and enqueue with 16 connections.**
+- [x] **Step 3: Add the host, native-messaging registration and Chrome/Edge force-install policies to the MSI; lock the install directory so the native manifest path stays valid.**
+- [x] **Step 4: Add `scripts/build-extension.ps1`** (Chrome pack, CRX/SHA256, refreshed `updates.xml` and `docs/extension/`) and verify the native host round-trip.
+- [x] **Step 5: Update docs for one-line install, browser restart, self-hosted updates, manual release; run tests, build the MSI and validate it.**

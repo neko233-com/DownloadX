@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/DownloadX/internal/engine"
+	"github.com/neko233-com/DownloadX/internal/inbox"
 	"github.com/neko233-com/DownloadX/internal/runner"
 )
 
@@ -88,13 +89,14 @@ func clamp01(v float64) float64 {
 
 // Manager runs jobs on a small worker pool.
 type Manager struct {
-	mu       sync.Mutex
-	jobs     []*Job
-	queue    chan *Job
-	rootCtx  context.Context
-	stop     context.CancelFunc
-	onUpdate func()
-	seq      atomic.Int64
+	mu           sync.Mutex
+	jobs         []*Job
+	queue        chan *Job
+	rootCtx      context.Context
+	stop         context.CancelFunc
+	onUpdate     func()
+	seq          atomic.Int64
+	inboxStarted bool
 }
 
 // NewManager starts workers reading the queue.
@@ -119,6 +121,56 @@ func (m *Manager) SetOnUpdate(fn func()) {
 	m.mu.Lock()
 	m.onUpdate = fn
 	m.mu.Unlock()
+}
+
+// StartInbox watches for downloads handed off by the browser extensions and
+// queues them into dir. It runs once per manager.
+func (m *Manager) StartInbox(dir string) {
+	if strings.TrimSpace(dir) == "" {
+		dir = "."
+	}
+	m.mu.Lock()
+	if m.inboxStarted {
+		m.mu.Unlock()
+		return
+	}
+	m.inboxStarted = true
+	m.mu.Unlock()
+
+	go m.watchInbox(dir)
+}
+
+func (m *Manager) watchInbox(dir string) {
+	m.processInbox(dir)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.rootCtx.Done():
+			return
+		case <-ticker.C:
+			m.processInbox(dir)
+		}
+	}
+}
+
+func (m *Manager) processInbox(dir string) {
+	items, err := inbox.Pending()
+	if err != nil {
+		return
+	}
+	for _, item := range items {
+		req := item.Request
+		if _, err := m.Add(Request{
+			URL:         req.URL,
+			Dir:         dir,
+			Connections: engine.DefaultConnections,
+			Type:        engine.TypeAuto,
+		}); err != nil {
+			inbox.Logf("inbox: %v", err)
+		}
+		inbox.Remove(item.Path)
+	}
 }
 
 // Stop cancels running jobs and stops the workers.

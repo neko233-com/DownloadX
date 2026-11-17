@@ -1,0 +1,9 @@
+{
+  "name": "com.neko233.downloadx",
+  "description": "DownloadX browser hand-off host",
+  "path": "C:\\Program Files\\DownloadX\\downloadx-host.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://pdlpjmbjgipkbjekncinhchgbahpgbng/"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "DownloadX",
+  "short_name": "DownloadX",
+  "version": "0.2.0",
+  "description": "Hand downloads from Chrome and Edge to the DownloadX desktop app.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApjVljTSUMz+2TKFV9ATYU2SJtKMVVsfaBH5U3H3CNPSz75BuO16IIIPJMuH1nfLbjSwGz3ZUL4GfoaxblLcnmHQ1iBQSzMqaAlghPig8IQ/5Q+C7RJ/y6IU0Efe0udKYMZOB6npor/ot/lcWtHPsPH/pbrOHSmZiCBvjrrgEsjUY6QtnNrvDWwCePripUHof/OU8zpI9LbfJzFcZnjJiU9vyH8fy0fGgYBtDoKWt2u6YCTe5zedAF2WAk9JNBgSk9tiAPYWPKoU5n7UJS8blig4aJnAnG/UO8jeUlTX9x8PoCm205f8fHXPF/bxxnohj/0ci4IKowWctTVYq/RwpkwIDAQAB",
+  "minimum_chrome_version": "102",
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "storage",
+    "notifications",
+    "contextMenus"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "DownloadX",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

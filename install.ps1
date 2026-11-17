@@ -35,6 +35,7 @@ try {
     Write-Host "DownloadX is installed."
     Write-Host "  App: C:\Program Files\DownloadX\downloadx-gui.exe (Start menu: DownloadX)"
     Write-Host "  CLI: C:\Program Files\DownloadX\downloadx.exe"
+    Write-Host "  Browser: restart Chrome/Edge once; the DownloadX extension installs automatically."
 } finally {
     Remove-Item -Force $msi -ErrorAction SilentlyContinue
 }

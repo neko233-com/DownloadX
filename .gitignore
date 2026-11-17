@@ -21,3 +21,8 @@ vendor/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Extension signing material
+extensions/downloadx.pem
+extensions/public.der
+extensions/downloadx.crx

@@ -14,8 +14,7 @@
     <Property Id="ARPPRODUCTICON" Value="DownloadX.ico" />
     <Property Id="ARPHELPLINK" Value="https://github.com/neko233-com/DownloadX" />
 
-    <UIRef Id="WixUI_InstallDir" />
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <UIRef Id="WixUI_Minimal" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseFile)" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -41,6 +40,33 @@
         <RegistryValue Root="HKLM" Key="Software\neko233-com\DownloadX"
                        Name="downloadx-gui" Type="integer" Value="1" KeyPath="yes" />
       </Component>
+      <Component Id="DownloadXHost" Guid="7BF591C0-4D81-40FC-AB66-100EE3E6AD1A" Win64="yes">
+        <File Id="DownloadXHostExe" Name="downloadx-host.exe"
+              Source="$(var.PayloadDir)\downloadx-host.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="NativeHostManifest" Guid="40818CD1-928E-4082-9AB4-06AD9856CEAC" Win64="yes">
+        <File Id="NativeHostManifestFile" Name="com.neko233.downloadx.json"
+              Source="$(var.ManifestFile)" KeyPath="yes" />
+      </Component>
+      <Component Id="NativeHostRegistration" Guid="405E5620-DEE7-4116-A237-7ED24A89026F" Win64="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Google\Chrome\NativeMessagingHosts\com.neko233.downloadx">
+          <RegistryValue Type="string" Value="[INSTALLFOLDER]com.neko233.downloadx.json" KeyPath="yes" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Edge\NativeMessagingHosts\com.neko233.downloadx">
+          <RegistryValue Type="string" Value="[INSTALLFOLDER]com.neko233.downloadx.json" />
+        </RegistryKey>
+      </Component>
+      <Component Id="ExtensionPolicies" Guid="96E98127-C3A3-44D6-A08A-EB7A031F06F4" Win64="yes">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Policies\Google\Chrome\ExtensionInstallForcelist">
+          <RegistryValue Name="1" Type="string"
+                         Value="pdlpjmbjgipkbjekncinhchgbahpgbng;https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml"
+                         KeyPath="yes" />
+        </RegistryKey>
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist">
+          <RegistryValue Name="1" Type="string"
+                         Value="pdlpjmbjgipkbjekncinhchgbahpgbng;https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml" />
+        </RegistryKey>
+      </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
@@ -61,6 +87,10 @@
     <Feature Id="MainFeature" Title="DownloadX" Level="1">
       <ComponentRef Id="DownloadXCLI" />
       <ComponentRef Id="DownloadXGUI" />
+      <ComponentRef Id="DownloadXHost" />
+      <ComponentRef Id="NativeHostManifest" />
+      <ComponentRef Id="NativeHostRegistration" />
+      <ComponentRef Id="ExtensionPolicies" />
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
   </Product>

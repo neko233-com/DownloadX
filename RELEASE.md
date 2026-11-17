@@ -8,6 +8,8 @@ a Windows machine.
 - Go 1.27.3 or later
 - WiX Toolset 3.14 with `candle.exe` and `light.exe` (or set `WIX_BIN`)
 - PowerShell 5.1 or later
+- Chrome or Edge for packing the CRX
+- `extensions/downloadx.pem` (extension signing key, not committed)
 - `gh` authenticated for `neko233-com/DownloadX`
 - A clean working tree on `main`
 
@@ -18,14 +20,34 @@ go vet ./...
 go test ./...
 go build ./cmd/downloadx
 go build -tags=mygo_nowebview ./cmd/downloadx-gui
+go build ./cmd/downloadx-host
 ```
 
-## 2. Build the MSI
+## 2. Bump versions
+
+Keep these equal to the tag without `v`:
+
+- `extensions/downloadx/manifest.json` → `"version"`
+- MSI `-Version` argument
+
+## 3. Build the extension CRX
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
+```
+
+This writes `dist\DownloadX-extension.crx`, its checksum, and refreshes
+`extensions/updates.xml` plus `docs/extension/updates.xml` and
+`docs/extension/downloadx.crx` (served by jsDelivr for the force-install
+policy). Commit the `docs/extension/` changes before tagging; browsers update
+from that copy.
+
+## 4. Build the MSI
 
 Pick the version without a leading `v`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.1.0
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.0
 ```
 
 This produces:
@@ -35,8 +57,10 @@ dist\DownloadX-windows-amd64.msi
 dist\DownloadX-windows-amd64.msi.sha256
 ```
 
-The MSI is per-machine (`C:\Program Files\DownloadX`), installs both
-`downloadx.exe` and `downloadx-gui.exe`, and adds a Start-menu shortcut.
+The MSI is per-machine (`C:\Program Files\DownloadX`), installs the CLI, the
+desktop app and `downloadx-host.exe`, adds a Start-menu shortcut, registers the
+native messaging host for Chrome/Edge, and force-installs the extension through
+browser policies.
 
 Validate the payload without installing:
 
@@ -58,30 +82,33 @@ Uninstall from **Settings → Apps → DownloadX**, or find the product code und
 `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall` and run
 `msiexec /x {PRODUCT-CODE} /passive`.
 
-## 3. Commit and tag
+## 5. Commit and tag
 
 ```powershell
 git add -A
-git commit -m "release: v0.1.0"
+git commit -m "release: v0.2.0"
 git push origin main
-git tag -a v0.1.0 -m "DownloadX 0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "DownloadX 0.2.0"
+git push origin v0.2.0
 ```
 
-## 4. Create the GitHub release
+## 6. Create the GitHub release
 
 ```powershell
-gh release create v0.1.0 `
+gh release create v0.2.0 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
-  --title "DownloadX 0.1.0" `
-  --notes "Windows x64 installer. Segmented HTTP/FTP, HLS, DASH, BitTorrent, and the native MyGo + Lobe UI desktop app."
+  dist\DownloadX-extension.crx `
+  dist\DownloadX-extension.crx.sha256 `
+  --title "DownloadX 0.2.0" `
+  --notes "Windows x64 installer, Chrome/Edge extension, segmented HTTP/FTP, HLS, DASH, BitTorrent, and the native MyGo + Lobe UI desktop app."
 ```
 
-Keep the asset name `DownloadX-windows-amd64.msi` stable: the one-line
-installers use `releases/latest/download/DownloadX-windows-amd64.msi`.
+Keep the asset names stable: the one-line installers use
+`releases/latest/download/DownloadX-windows-amd64.msi`, and the CRX copy in
+`docs/extension/` is the one browsers auto-update from.
 
-## 5. Verify the installers
+## 7. Verify the installers and browser update URLs
 
 In a normal PowerShell window:
 
@@ -98,9 +125,26 @@ curl -fsSL https://raw.githubusercontent.com/neko233-com/DownloadX/main/install.
 Both should download the MSI, request administrator permission, install to
 `C:\Program Files\DownloadX`, and create the Start-menu shortcut.
 
+Check jsDelivr (may take a few minutes to refresh):
+
+```powershell
+$u = "https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml"
+Invoke-WebRequest $u -UseBasicParsing | Select-Object -ExpandProperty Content
+```
+
+The CRX response must have `Content-Type: application/x-chrome-extension`:
+
+```powershell
+$crx = "https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/downloadx.crx"
+(Invoke-WebRequest $crx -Method Head -UseBasicParsing).Headers["Content-Type"]
+```
+
+Restart Chrome/Edge after installing the MSI. The extension appears without the
+Web Store; no developer mode is needed.
+
 ## Notes
 
 - GitHub Actions is disabled for this repository. Do not add `.github/workflows`.
-- The GUI is Windows-only for now. Other platforms are not supported releases.
-- The version embedded in the executables comes from `-Version` in the MSI build
-  script; keep it equal to the tag without the `v`.
+- The GUI and extension are Windows-only for now.
+- Keep `extensions/downloadx.pem` backed up: losing it changes the extension ID
+  and breaks force-install policies on existing machines.

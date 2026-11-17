@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DownloadX</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="head">
+        <div class="logo">↓</div>
+        <div class="title">
+          <h1>DownloadX</h1>
+          <p>Multi-connection downloads</p>
+        </div>
+        <span id="status" class="pill">checking</span>
+      </header>
+
+      <label class="row">
+        <span>
+          <strong>Intercept downloads</strong>
+          <small>Send new Chrome and Edge downloads to DownloadX.</small>
+        </span>
+        <input id="enabled" type="checkbox" checked />
+      </label>
+
+      <button id="open" type="button">Open DownloadX</button>
+
+      <p class="hint">
+        Restart the browser once after installation so the extension can load.
+      </p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
