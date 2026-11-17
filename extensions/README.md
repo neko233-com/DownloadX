@@ -54,7 +54,8 @@ docs\extension\updates.xml
 ```
 
 Upload the CRX and its checksum to the GitHub release. Commit the refreshed
-`extensions/updates.xml` and `docs/extension/`; the policy points at
+`extensions/updates.xml` and `docs/extension/`. After pushing, run
+`scripts/purge-cdn.ps1`; the policy/external-extension URL points at
 `https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml`
 and jsDelivr serves `downloadx.crx` as `application/x-chrome-extension`.
 

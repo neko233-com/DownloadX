@@ -250,8 +250,9 @@ The build scripts produce `dist\DownloadX-windows-amd64.msi` and
 `dist\DownloadX-extension.crx` with stable asset names. The install scripts use
 `releases/latest/download/DownloadX-windows-amd64.msi`; browsers use the
 jsDelivr copy of `docs/extension/updates.xml` and `downloadx.crx`. Commit the
-refreshed `extensions/updates.xml` and `docs/extension/` with the release. The
-MSI build requires Go 1.27.3+ and WiX Toolset 3.14 (`candle.exe`, `light.exe`).
+refreshed `extensions/updates.xml` and `docs/extension/`, push, then run
+`scripts\purge-cdn.ps1` so browsers see the new extension immediately. The MSI
+build requires Go 1.27.3+ and WiX Toolset 3.14 (`candle.exe`, `light.exe`).
 
 ## Architecture
 

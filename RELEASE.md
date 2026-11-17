@@ -125,7 +125,11 @@ curl -fsSL https://raw.githubusercontent.com/neko233-com/DownloadX/main/install.
 Both should download the MSI, request administrator permission, install to
 `C:\Program Files\DownloadX`, and create the Start-menu shortcut.
 
-Check jsDelivr (may take a few minutes to refresh):
+Check jsDelivr (may take a few minutes to refresh; run the purge script first):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\purge-cdn.ps1
+```
 
 ```powershell
 $u = "https://cdn.jsdelivr.net/gh/neko233-com/DownloadX@main/docs/extension/updates.xml"

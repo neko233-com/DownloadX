@@ -134,6 +134,7 @@ docs/extension/                self-hosted CRX and updates.xml
 installer/                     WiX source, native manifest, icon and license RTF
 scripts/build-msi.ps1          Windows x64 MSI build
 scripts/build-extension.ps1    CRX pack + update manifest
+scripts/purge-cdn.ps1          purge jsDelivr after an extension release
 install.ps1, install.sh        one-line installers
 RELEASE.md, AGENTS.md          manual release and agent instructions
 ```

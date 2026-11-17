@@ -132,3 +132,10 @@ gh release create v0.2.1 `
 Then verify that
 `https://github.com/neko233-com/DownloadX/releases/latest/download/DownloadX-windows-amd64.msi`
 and `.../DownloadX-extension.crx` resolve.
+
+After pushing `docs/extension/`, purge the CDN so browsers see the new version
+immediately:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\purge-cdn.ps1
+```
