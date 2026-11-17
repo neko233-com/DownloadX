@@ -136,3 +136,37 @@ func DetectType(raw string) Type {
 	}
 	return TypeAuto
 }
+
+// PlanSegments splits size into at most conns contiguous, inclusive segments
+// of at least MinSegmentSize each (except the last).
+func PlanSegments(size int64, conns int) []Segment {
+	if size <= 0 {
+		return nil
+	}
+	if conns < 1 {
+		conns = 1
+	}
+	n := int((size + MinSegmentSize - 1) / MinSegmentSize)
+	if n > conns {
+		n = conns
+	}
+	if n < 1 {
+		n = 1
+	}
+	segSize := size / int64(n)
+	if segSize < 1 {
+		segSize = 1
+		n = 1
+	}
+	segs := make([]Segment, 0, n)
+	var start int64
+	for i := 0; i < n; i++ {
+		end := start + segSize - 1
+		if i == n-1 || end > size-1 {
+			end = size - 1
+		}
+		segs = append(segs, Segment{Start: start, End: end})
+		start = end + 1
+	}
+	return segs
+}
