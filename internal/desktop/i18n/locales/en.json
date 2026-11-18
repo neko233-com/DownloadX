@@ -47,6 +47,8 @@
     "toast.retryFailed": "Could not retry",
     "toast.pathCopied": "Path copied",
     "toast.settingsSaved": "Settings saved",
+    "toast.settingsFailed": "Could not save settings",
+    "job.magnetTitle": "Magnet download",
     "settings.title": "Settings",
     "settings.subtitle": "Download defaults, language and browser integration.",
     "settings.general": "General",

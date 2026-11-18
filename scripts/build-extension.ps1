@@ -64,11 +64,18 @@ $deadline = (Get-Date).AddSeconds(30)
 while (-not (Test-Path $crxNextToExt) -and (Get-Date) -lt $deadline) {
     Start-Sleep -Milliseconds 200
 }
-Remove-Item -Recurse -Force $profile -ErrorAction SilentlyContinue
-if (-not (Test-Path $crxNextToExt)) {
-    throw "Chrome did not produce extensions\downloadx.crx"
+# Chrome can keep the throwaway profile locked for a moment after packing.
+# Cleanup must never fail the release, so retry once and warn after that.
+try {
+    Remove-Item -Recurse -Force $profile -ErrorAction Stop
+} catch {
+    Start-Sleep -Milliseconds 500
+    try {
+        Remove-Item -Recurse -Force $profile -ErrorAction Stop
+    } catch {
+        Write-Warning "Could not remove pack profile $profile; remove it manually."
+    }
 }
-
 if (-not (Test-Path $crxNextToExt)) {
     throw "Chrome did not produce extensions\downloadx.crx"
 }

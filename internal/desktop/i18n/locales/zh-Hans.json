@@ -47,6 +47,8 @@
     "toast.retryFailed": "无法重试",
     "toast.pathCopied": "路径已复制",
     "toast.settingsSaved": "设置已保存",
+    "toast.settingsFailed": "无法保存设置",
+    "job.magnetTitle": "磁力下载",
     "settings.title": "设置",
     "settings.subtitle": "下载默认项、语言与浏览器集成。",
     "settings.general": "通用",

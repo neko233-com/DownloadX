@@ -158,13 +158,10 @@ func (a *App) sidebar(c *ui.Context, tk *theme.Tokens) {
 		a.navItem(c, tk, pageSettings, lucide.Settings2(), a.t("nav.settings"))
 		a.navItem(c, tk, pageAbout, lucide.Info(), a.t("nav.about"))
 		ui.Spacer(c)
-		display.Tag(c, a.t("sidebar.extension"), display.TagProps{
-			Variant: display.TagFilled,
-			Color:   display.TagGray,
-			Size:    theme.Small,
-			Round:   true,
+		ui.Row(c).Gap(6).AlignItems(ui.Center).PaddingX(2).Children(func() {
+			ui.Icon(c, lucide.Globe()).FontSize(12).TextColor(tk.TextQuaternary)
+			ui.Text(c, a.t("sidebar.extension")).FontSize(11).TextColor(tk.TextQuaternary)
 		})
-		ui.Text(c, a.t("app.version", version.Version)).FontSize(11).TextColor(tk.TextQuaternary).PaddingX(2)
 	})
 }
 
@@ -351,7 +348,7 @@ func (a *App) jobCard(c *ui.Context, tk *theme.Tokens, j Job) {
 			})
 
 			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(4).Children(func() {
-				ui.Text(c, jobTitle(j)).FontSize(14).FontWeight(500).TextColor(tk.Text).SingleLine()
+				ui.Text(c, a.jobTitle(j)).FontSize(14).FontWeight(500).TextColor(tk.Text).SingleLine()
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					display.Tag(c, a.statusLabel(j.Status), display.TagProps{
 						Variant: display.TagFilled,
@@ -509,7 +506,7 @@ func (a *App) settingsPage(c *ui.Context, tk *theme.Tokens) {
 				Size:    theme.Middle,
 			}).Clicked() {
 				if err := a.SaveSettings(); err != nil {
-					feedback.ShowToast(c, feedback.ToastProps{Type: feedback.ToastError, Title: a.t("toast.addFailed"), Description: err.Error()})
+					feedback.ShowToast(c, feedback.ToastProps{Type: feedback.ToastError, Title: a.t("toast.settingsFailed"), Description: err.Error()})
 				} else {
 					feedback.ShowToast(c, feedback.ToastProps{Type: feedback.ToastSuccess, Title: a.t("toast.settingsSaved")})
 				}
@@ -691,7 +688,7 @@ func jobTone(tk *theme.Tokens, j Job) (*ui.SVG, ui.Color, display.TagColor) {
 	}
 }
 
-func jobTitle(j Job) string {
+func (a *App) jobTitle(j Job) string {
 	if j.Path != "" {
 		return filepath.Base(j.Path)
 	}
@@ -699,7 +696,7 @@ func jobTitle(j Job) string {
 		return name
 	}
 	if strings.HasPrefix(strings.ToLower(j.URL), "magnet:") {
-		return "Magnet download"
+		return a.t("job.magnetTitle")
 	}
 	if info, err := os.Stat(j.URL); err == nil && !info.IsDir() {
 		return filepath.Base(j.URL)
@@ -806,8 +803,8 @@ func textField(c *ui.Context, tk *theme.Tokens, value *string, placeholder strin
 		if icon != nil {
 			ui.Icon(c, icon).FontSize(fontSize).TextColor(tk.TextTertiary).Shrink(0)
 		}
-		input = ui.TextInput(c, value).Grow(1).FocusRing(false).
-			Placeholder(placeholder).PlaceholderColor(tk.TextPlaceholder).FontSize(fontSize)
+		input = ui.TextInputBase(c, value).Grow(1).FocusRing(false).
+			Placeholder(placeholder).PlaceholderColor(tk.TextPlaceholder).FontSize(fontSize).TextColor(tk.Text)
 		if autoFocus {
 			input.AutoFocus()
 		}
