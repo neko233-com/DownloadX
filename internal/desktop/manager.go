@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ type Status string
 const (
 	StatusQueued   Status = "queued"
 	StatusRunning  Status = "running"
+	StatusPaused   Status = "paused"
 	StatusDone     Status = "done"
 	StatusError    Status = "error"
 	StatusCanceled Status = "canceled"
@@ -31,6 +33,7 @@ const (
 type Request struct {
 	URL         string
 	Dir         string
+	Filename    string
 	Connections int
 	Type        engine.Type
 }
@@ -40,6 +43,7 @@ type Job struct {
 	ID          string
 	URL         string
 	Dir         string
+	Filename    string
 	Connections int
 	Type        engine.Type
 	Status      Status
@@ -85,6 +89,95 @@ func clamp01(v float64) float64 {
 		return 1
 	}
 	return v
+}
+
+// SafeFilename keeps a user-supplied name a single Windows file name.
+func SafeFilename(name string) string {
+	name = strings.TrimSpace(name)
+	name = strings.Map(func(r rune) rune {
+		switch r {
+		case '\\', '/', ':', '*', '?', '"', '<', '>', '|', 0:
+			return '_'
+		}
+		return r
+	}, name)
+	name = strings.Trim(name, ". ")
+	if name == "" || name == "." || name == ".." {
+		return "download"
+	}
+	return name
+}
+
+// Category groups a job by the kind of file it downloads.
+func (j Job) Category() string {
+	name := j.Path
+	if name == "" {
+		name = j.URL
+	}
+	if i := strings.IndexAny(name, "?#"); i >= 0 {
+		name = name[:i]
+	}
+	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".zst", ".cab":
+		return "compressed"
+	case ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".rtf", ".epub", ".mobi", ".csv", ".md":
+		return "documents"
+	case ".mp3", ".flac", ".wav", ".aac", ".m4a", ".ogg", ".opus", ".wma", ".ape":
+		return "music"
+	case ".exe", ".msi", ".msix", ".appx", ".apk", ".dmg", ".pkg", ".deb", ".rpm":
+		return "programs"
+	case ".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv", ".ts", ".m4v", ".wmv", ".mpg", ".mpeg":
+		return "video"
+	default:
+		return "other"
+	}
+}
+
+// ETA estimates the remaining time at the current speed; zero means unknown.
+func (j Job) ETA() time.Duration {
+	if j.Speed <= 0 || j.Total <= 0 || j.Done >= j.Total {
+		return 0
+	}
+	return time.Duration(float64(j.Total-j.Done)/j.Speed) * time.Second
+}
+
+// Counts summarizes the queue for the status bar.
+type Counts struct {
+	Total      int
+	Active     int
+	Queued     int
+	Paused     int
+	Done       int
+	Failed     int
+	Speed      float64
+	Unfinished int
+}
+
+func (m *Manager) Counts() Counts {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var c Counts
+	for _, j := range m.jobs {
+		c.Total++
+		switch j.Status {
+		case StatusRunning:
+			c.Active++
+			c.Unfinished++
+			c.Speed += j.Speed
+		case StatusQueued:
+			c.Queued++
+			c.Unfinished++
+		case StatusPaused:
+			c.Paused++
+			c.Unfinished++
+		case StatusDone:
+			c.Done++
+		case StatusError:
+			c.Failed++
+		}
+	}
+	return c
 }
 
 // Manager runs jobs on a small worker pool.
@@ -164,6 +257,7 @@ func (m *Manager) processInbox(dir string) {
 		if _, err := m.Add(Request{
 			URL:         req.URL,
 			Dir:         dir,
+			Filename:    req.Filename,
 			Connections: engine.DefaultConnections,
 			Type:        engine.TypeAuto,
 		}); err != nil {
@@ -199,6 +293,7 @@ func (m *Manager) Add(req Request) (*Job, error) {
 		ID:          m.newID(),
 		URL:         url,
 		Dir:         strings.TrimSpace(req.Dir),
+		Filename:    strings.TrimSpace(req.Filename),
 		Connections: conn,
 		Type:        typ,
 		Status:      StatusQueued,
@@ -217,7 +312,7 @@ func (m *Manager) Add(req Request) (*Job, error) {
 	return job, nil
 }
 
-// Cancel stops a queued or running job.
+// Cancel stops a queued, paused or running job.
 func (m *Manager) Cancel(id string) {
 	m.mu.Lock()
 	for _, j := range m.jobs {
@@ -225,7 +320,7 @@ func (m *Manager) Cancel(id string) {
 			continue
 		}
 		switch j.Status {
-		case StatusQueued:
+		case StatusQueued, StatusPaused:
 			j.Status = StatusCanceled
 		case StatusRunning:
 			j.Status = StatusCanceled
@@ -237,6 +332,108 @@ func (m *Manager) Cancel(id string) {
 	}
 	m.mu.Unlock()
 	m.notify()
+}
+
+// Pause stops a running job and keeps its partial files so Resume continues
+// where it stopped. A queued job is paused before a worker starts it.
+func (m *Manager) Pause(id string) {
+	m.mu.Lock()
+	for _, j := range m.jobs {
+		if j.ID != id {
+			continue
+		}
+		switch j.Status {
+		case StatusQueued:
+			j.Status = StatusPaused
+		case StatusRunning:
+			j.Status = StatusPaused
+			if j.cancel != nil {
+				j.cancel()
+			}
+		}
+		break
+	}
+	m.mu.Unlock()
+	m.notify()
+}
+
+// Resume queues a paused job again. The engine resumes from the partial file.
+func (m *Manager) Resume(id string) error {
+	m.mu.Lock()
+	var job *Job
+	for _, j := range m.jobs {
+		if j.ID != id {
+			continue
+		}
+		if j.Status != StatusPaused {
+			m.mu.Unlock()
+			return errors.New("the download is not paused")
+		}
+		j.Status = StatusQueued
+		j.Finished = time.Time{}
+		job = j
+		break
+	}
+	m.mu.Unlock()
+	if job == nil {
+		return errors.New("download not found")
+	}
+	select {
+	case m.queue <- job:
+	case <-m.rootCtx.Done():
+		return errors.New("download manager stopped")
+	}
+	m.notify()
+	return nil
+}
+
+// PauseAll pauses every running or queued job and returns how many changed.
+func (m *Manager) PauseAll() int {
+	m.mu.Lock()
+	n := 0
+	for _, j := range m.jobs {
+		switch j.Status {
+		case StatusQueued:
+			j.Status = StatusPaused
+			n++
+		case StatusRunning:
+			j.Status = StatusPaused
+			if j.cancel != nil {
+				j.cancel()
+			}
+			n++
+		}
+	}
+	m.mu.Unlock()
+	if n > 0 {
+		m.notify()
+	}
+	return n
+}
+
+// ResumeAll queues every paused job and returns how many changed.
+func (m *Manager) ResumeAll() int {
+	m.mu.Lock()
+	var paused []*Job
+	for _, j := range m.jobs {
+		if j.Status == StatusPaused {
+			j.Status = StatusQueued
+			j.Finished = time.Time{}
+			paused = append(paused, j)
+		}
+	}
+	m.mu.Unlock()
+	for _, j := range paused {
+		select {
+		case m.queue <- j:
+		case <-m.rootCtx.Done():
+			return len(paused)
+		}
+	}
+	if len(paused) > 0 {
+		m.notify()
+	}
+	return len(paused)
 }
 
 // Retry queues the same request again.
@@ -252,7 +449,7 @@ func (m *Manager) Retry(id string) error {
 			m.mu.Unlock()
 			return errors.New("the download is still running")
 		}
-		req = Request{URL: j.URL, Dir: j.Dir, Connections: j.Connections, Type: j.Type}
+		req = Request{URL: j.URL, Dir: j.Dir, Filename: j.Filename, Connections: j.Connections, Type: j.Type}
 		found = true
 		break
 	}
@@ -271,7 +468,7 @@ func (m *Manager) Remove(id string) {
 		if j.ID != id || j.Status == StatusRunning {
 			continue
 		}
-		if j.Status == StatusQueued {
+		if j.Status == StatusQueued || j.Status == StatusPaused {
 			j.Status = StatusCanceled
 		}
 		m.jobs = append(m.jobs[:i], m.jobs[i+1:]...)
@@ -337,7 +534,7 @@ func (m *Manager) worker() {
 
 func (m *Manager) run(job *Job) {
 	m.mu.Lock()
-	if job.Status == StatusCanceled {
+	if job.Status != StatusQueued {
 		m.mu.Unlock()
 		return
 	}
@@ -358,6 +555,12 @@ func (m *Manager) run(job *Job) {
 		HLSQuality:  "best",
 		FFmpeg:      "ffmpeg",
 	}
+	torrent := job.Type == engine.TypeBT ||
+		strings.HasPrefix(strings.ToLower(job.URL), "magnet:") ||
+		strings.HasSuffix(strings.ToLower(job.URL), ".torrent")
+	if job.Filename != "" && !torrent {
+		task.Dest = filepath.Join(job.Dir, SafeFilename(job.Filename))
+	}
 	task.Progress = func(p engine.Progress) { m.progress(job, p) }
 	m.mu.Unlock()
 	m.notify()
@@ -369,6 +572,10 @@ func (m *Manager) run(job *Job) {
 	job.cancel = nil
 	job.Finished = time.Now()
 	switch {
+	case job.Status == StatusPaused:
+		// Pause keeps the partial files and the progress already reported.
+		job.Err = ""
+		job.Speed = 0
 	case job.Status == StatusCanceled || errors.Is(err, context.Canceled):
 		job.Status = StatusCanceled
 		job.Err = ""
@@ -394,6 +601,10 @@ func (m *Manager) run(job *Job) {
 
 func (m *Manager) progress(job *Job, p engine.Progress) {
 	m.mu.Lock()
+	if job.Status == StatusPaused || job.Status == StatusCanceled {
+		m.mu.Unlock()
+		return
+	}
 	job.Phase = p.Phase
 	job.Message = p.Message
 	if p.Done > 0 || p.Total > 0 {

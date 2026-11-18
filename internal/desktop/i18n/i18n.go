@@ -1,7 +1,3 @@
-// Package i18n loads interface translations from JSON catalogs.
-//
-// Built-in catalogs live in locales/*.json. Users add or override languages by
-// dropping JSON files into %LOCALAPPDATA%\DownloadX\locales.
 package i18n
 
 import (
@@ -102,6 +98,7 @@ func (b *Bundle) loadDir(dir string) {
 }
 
 func (b *Bundle) add(code string, data []byte) {
+	code = normalizeCode(code)
 	var c catalog
 	if err := json.Unmarshal(data, &c); err != nil || len(c.Messages) == 0 {
 		return
@@ -112,8 +109,22 @@ func (b *Bundle) add(code string, data []byte) {
 	b.catalogs[code] = &c
 }
 
-// Set switches the active language.
+// Has reports whether a catalog for code is loaded.
+func (b *Bundle) Has(code string) bool {
+	if b == nil {
+		return false
+	}
+	_, ok := b.catalogs[normalizeCode(code)]
+	return ok
+}
+
+// Set switches the active language. Codes are matched case-insensitively and
+// accept underscores in place of dashes.
 func (b *Bundle) Set(code string) bool {
+	if b == nil {
+		return false
+	}
+	code = normalizeCode(code)
 	if _, ok := b.catalogs[code]; !ok {
 		return false
 	}
@@ -150,6 +161,45 @@ func (b *Bundle) Languages() []Language {
 	return out
 }
 
+// Match picks the best catalog for the user's preferred BCP 47 tags. It
+// understands Chinese scripts and falls back from a regional tag to its base
+// language, then to English.
+func (b *Bundle) Match(preferred []string) string {
+	if b == nil {
+		return "en"
+	}
+	for _, raw := range preferred {
+		tag := strings.ToLower(strings.TrimSpace(raw))
+		if tag == "" {
+			continue
+		}
+		tag = strings.ReplaceAll(tag, "_", "-")
+		var candidates []string
+		if strings.HasPrefix(tag, "zh") {
+			hant := strings.Contains(tag, "hant") || strings.Contains(tag, "-tw") ||
+				strings.Contains(tag, "-hk") || strings.Contains(tag, "-mo") ||
+				tag == "zh-tw" || tag == "zh-hk"
+			if hant {
+				candidates = append(candidates, "zh-Hant")
+			}
+			candidates = append(candidates, "zh-Hans")
+		}
+		candidates = append(candidates, tag)
+		if base, _, ok := strings.Cut(tag, "-"); ok {
+			candidates = append(candidates, base)
+		}
+		for _, candidate := range candidates {
+			if b.Set(candidate) {
+				return b.Code()
+			}
+		}
+	}
+	if b.Set("en") {
+		return "en"
+	}
+	return b.Code()
+}
+
 // T translates key, falling back to English, then to the key itself.
 func (b *Bundle) T(key string) string {
 	if b == nil {
@@ -175,4 +225,30 @@ func (b *Bundle) Tf(key string, args ...any) string {
 		return msg
 	}
 	return fmt.Sprintf(msg, args...)
+}
+
+func normalizeCode(code string) string {
+	code = strings.TrimSpace(code)
+	code = strings.ReplaceAll(code, "_", "-")
+	if code == "" {
+		return code
+	}
+	parts := strings.Split(code, "-")
+	for i, part := range parts {
+		switch strings.ToLower(part) {
+		case "hans":
+			parts[i] = "Hans"
+		case "hant":
+			parts[i] = "Hant"
+		default:
+			if len(part) == 2 {
+				parts[i] = strings.ToLower(part)
+			} else if len(part) == 3 {
+				parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
+			} else {
+				parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
+			}
+		}
+	}
+	return strings.Join(parts, "-")
 }

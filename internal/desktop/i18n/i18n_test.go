@@ -29,6 +29,23 @@ func TestBuiltinCatalogs(t *testing.T) {
 	}
 }
 
+func TestMatchPreferredLanguages(t *testing.T) {
+	t.Setenv("LOCALAPPDATA", t.TempDir())
+	b := Load()
+	cases := map[string]string{
+		"zh-CN": "zh-Hans",
+		"zh-SG": "zh-Hans",
+		"zh-TW": "zh-Hant",
+		"zh-HK": "zh-Hant",
+		"en-GB": "en",
+	}
+	for tag, want := range cases {
+		if got := b.Match([]string{tag}); got != want {
+			t.Errorf("Match(%q) = %q, want %q", tag, got, want)
+		}
+	}
+}
+
 func TestExternalCatalog(t *testing.T) {
 	t.Setenv("LOCALAPPDATA", t.TempDir())
 	dir, err := UserDir()

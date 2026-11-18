@@ -1,5 +1,5 @@
 // Command downloadx-gui is the native DownloadX desktop app, drawn by MyGo
-// with the Lobe UI design language.
+// with the Lobe MyGo design language.
 package main
 
 import (
@@ -15,6 +15,9 @@ import (
 func main() {
 	mygo.App.SetName("DownloadX")
 	mygo.App.SetVersion(version.Version)
+	// Tell MyGo which languages the app ships so its own controls and
+	// native strings follow the same language as the workbench.
+	mygo.App.SetLanguages("en", "zh-Hans", "zh-Hant", "ja", "de", "fr")
 
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
@@ -27,11 +30,11 @@ func main() {
 		}
 	})
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
-		_ = app.SaveSettings()
-		app.Stop()
+		app.BeforeQuit()
 	})
 
 	mygo.App.WhenReady(func() {
+		hidden := app.StartHidden()
 		win := mygo.NewWindow(mygo.WindowOptions{
 			Title:           "DownloadX",
 			Width:           1180,
@@ -40,9 +43,10 @@ func main() {
 			MinHeight:       620,
 			TitleBarStyle:   mygo.TitleBarHidden,
 			BackgroundColor: "light-dark(#ffffff, #000000)",
+			Hidden:          hidden,
 			Content:         ui.View(app.View),
 		})
-		app.Attach(win)
+		app.Attach(win, hidden)
 	})
 
 	if err := mygo.App.Run(); err != nil {

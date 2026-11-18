@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/neko233-com/DownloadX/internal/engine"
+	"github.com/neko233-com/DownloadX/internal/version"
 )
 
 // TestPreviewImage writes a PNG of the window when DOWNLOADX_PREVIEW names a
@@ -20,10 +21,13 @@ func TestPreviewImage(t *testing.T) {
 		t.Skip("set DOWNLOADX_PREVIEW=path.png to render the window")
 	}
 	t.Setenv("LOCALAPPDATA", t.TempDir())
+	version.Version = "2.0.0"
 	app := New()
 	defer app.Stop()
 	app.lang.Set("en")
 	app.language = "en"
+	app.languageAuto = true
+	app.languageChoice = "system"
 
 	now := time.Now()
 	app.manager.mu.Lock()
@@ -76,8 +80,8 @@ func TestPreviewImage(t *testing.T) {
 		dark bool
 		page page
 	}{
-		{"dark", true, pageDownloads},
-		{"light", false, pageDownloads},
+		{"dark", true, pageWorkbench},
+		{"light", false, pageWorkbench},
 		{"settings-dark", true, pageSettings},
 		{"settings-light", false, pageSettings},
 	} {

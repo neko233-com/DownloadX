@@ -34,12 +34,24 @@ BitTorrent — from one CLI or one native window.
   video + audio, optional `ffmpeg` muxing, and DRM detection.
 - **BitTorrent** magnets, `.torrent` files and `.torrent` URLs, DHT, piece-level
   resume and optional seeding.
-- **Native desktop UI** built with [MyGo](https://github.com/egoist/mygo) and
-  [Lobe MyGo](https://github.com/lobehub/lobe-mygo): GPU-drawn, no webview, no
-  HTML, no JavaScript. Light and dark follow the system.
-- **Native i18n**: English and Simplified Chinese built in, with a language
-  switch in Settings. Add languages by dropping JSON catalogs into
+- **Native NDM-style workbench** built with [MyGo](https://github.com/egoist/mygo)
+  and [Lobe MyGo](https://github.com/lobehub/lobe-mygo): category sidebar,
+  toolbar, sortable download table, status bar and an Add Download drawer.
+  GPU-drawn, no webview, no HTML, no JavaScript.
+- **Pause, resume and queue**: pause keeps partial files, resume continues from
+  the same byte offsets, and two downloads run at once by default.
+- **Background operation**: closing the window keeps downloads running in the
+  tray. The tray menu can open the app, pause/resume everything, toggle
+  start-with-Windows, check for updates or quit.
+- **Start with Windows** is enabled by default and can be switched off in
+  Settings or from the tray menu.
+- **Native i18n**: English, Simplified Chinese, Traditional Chinese, Japanese,
+  German and French ship with the app. It follows the Windows display language
+  on first launch; add more languages by dropping JSON catalogs into
   `%LOCALAPPDATA%\DownloadX\locales` — no rebuild required.
+- **Built-in updater**: checks GitHub Releases at startup (at most once every
+  24 hours), or on demand from Settings; downloads and verifies the MSI, then
+  installs it through Windows Installer.
 - **Chrome + Edge extension**, registered by the MSI through the browsers'
   external-extension registry and auto-updated from a self-hosted manifest — no
   Web Store, no developer mode.
@@ -57,6 +69,10 @@ irm https://raw.githubusercontent.com/neko233-com/DownloadX/main/install.ps1 | i
 The script downloads the latest MSI, asks Windows for administrator permission,
 and installs to `C:\Program Files\DownloadX`. Launch **DownloadX** from the Start
 menu, or run the CLI at `C:\Program Files\DownloadX\downloadx.exe`.
+
+The desktop app starts with Windows by default, keeps running in the tray when
+its window closes, and checks for updates automatically. Both behaviours can be
+changed under **Settings → General**.
 
 **Restart Chrome and Edge once after installing.** The MSI registers the
 extension with both browsers' external-extension registry. Chrome and Edge show
@@ -204,19 +220,31 @@ state is an error (use `--no-resume` to overwrite).
 downloadx-gui      # or: downloadx gui
 ```
 
-The window is drawn natively on the GPU by MyGo, using Lobe UI components and
+The window is drawn natively on the GPU by MyGo, using Lobe MyGo components and
 design tokens. There is no webview and no front-end build.
 
-- Left sidebar with three pages: **Downloads**, **Settings** and **About**.
-- Settings keeps the default folder, connections, protocol and languages in
-  `%LOCALAPPDATA%\DownloadX\settings.json`.
-- Paste a URL, magnet link, `.torrent` path, HLS playlist or DASH manifest.
-- Pick a folder with the native folder picker.
-- Choose the connection count and force a protocol if auto-detection is not
-  what you want.
-- Two downloads run at once; the rest wait in the queue.
-- Cancel, retry, remove, copy the output path, or reveal it in the file manager.
+- **Category sidebar**: All downloads, Downloading, Queued, Paused, Finished,
+  Failed, plus Compressed, Documents, Music, Programs, Video and Other.
+- **Toolbar**: Add URL, Pause all, Resume all, Open folder, Clear finished and
+  search; the update indicator appears when a release is available.
+- **Download table**: file name and URL, size, progress, speed, time left,
+  status and date added. Click a column to sort, right-click a row for pause,
+  resume, retry, open, copy URL or remove.
+- **Status bar**: totals, active/queued/failed counts, aggregate speed and
+  connection count.
+- **Add Download drawer**: URL, folder, optional file name, connections and
+  protocol. Press Enter in the URL field or click **Start download**.
+- **Settings**: follow-Windows language selection, start with Windows, close to
+  tray, automatic update checks, clipboard monitoring, default folder,
+  connections and protocol.
+- **Updates**: manual **Check now**, automatic startup checks, release notes,
+  download progress, checksum verification and **Install and restart**.
+- **Tray**: open the app, pause/resume all, toggle start with Windows, check for
+  updates or quit. Closing the window keeps downloads running.
+- Two downloads run at once; the rest wait in the queue. Pause keeps partial
+  files and resume continues from the same offsets.
 - Progress updates include speed, ETA, segment counts and torrent peers.
+- Settings persist to `%LOCALAPPDATA%\DownloadX\settings.json`.
 
 | Downloads | Settings |
 | --- | --- |
@@ -227,25 +255,27 @@ Light previews: [downloads](docs/gui-preview-light.png) ·
 
 ### Languages
 
-English and Simplified Chinese ship with the app. Pick a language under
-**Settings → General → Language**.
+English, Simplified Chinese, Traditional Chinese, Japanese, German and French
+ship with the app. It follows the Windows display language on first launch;
+pick a fixed language under **Settings → General → Language**.
 
 To add a language without rebuilding, drop a JSON catalog into
-`%LOCALAPPDATA%\DownloadX\locales` (for example `ja.json`):
+`%LOCALAPPDATA%\DownloadX\locales` (for example `ko.json`):
 
 ```json
 {
-  "name": "日本語",
+  "name": "한국어",
   "messages": {
-    "nav.downloads": "ダウンロード",
-    "nav.settings": "設定",
-    "nav.about": "情報",
-    "hero.title": "高速ダウンロード。"
+    "nav.downloads": "다운로드",
+    "nav.settings": "설정",
+    "nav.about": "정보",
+    "toolbar.add": "URL 추가",
+    "category.all": "모든 다운로드"
   }
 }
 ```
 
-Missing keys fall back to English. The file name (`ja`) is the language code
+Missing keys fall back to English. The file name (`ko`) is the language code
 shown to the app; the `name` is what Settings displays.
 
 ## Protocol support
@@ -268,8 +298,13 @@ shown to the app; the `name` is what Settings displays.
   Otherwise two files are kept and the window/CLI tells you so.
 - `ftps://` means explicit TLS (`AUTH TLS`); implicit FTPS and SFTP are not
   supported.
-- No browser extension yet; browser handoff is on the roadmap.
 - BitTorrent v2-only torrents are not guaranteed; v1 and hybrid torrents work.
+- The MSI and executables are unsigned. Windows may show an unknown-publisher
+  or SmartScreen prompt on first run; choose **More info → Run anyway**. The
+  published SHA-256 checksums can be verified against the release assets.
+- Self-hosted browser extensions need one **Keep extension** confirmation per
+  browser on unmanaged Windows. That is a browser security rule, not a
+  DownloadX prompt.
 
 ## Manual releases
 
@@ -278,10 +313,10 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 1.0.0
-git tag -a v1.0.0 -m "DownloadX 1.0.0"
-git push origin v1.0.0
-gh release create v1.0.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.0
+git tag -a v2.0.0 -m "DownloadX 2.0.0"
+git push origin v2.0.0
+gh release create v2.0.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
 The build scripts produce `dist\DownloadX-windows-amd64.msi` and
@@ -308,9 +343,12 @@ internal/segdl             concurrent part download + ordered concat
 internal/bt                anacrolix/torrent adapter
 internal/engine            task model, naming, resume state, rate limiter
 internal/progress          TTY / plain / JSON progress reporters
-internal/desktop           MyGo + Lobe UI window, queue manager
-internal/desktop/i18n      JSON language catalogs and loader
+internal/desktop           NDM workbench, tray, queue manager, updater UI
+internal/desktop/assets    title-bar, About and tray logo PNGs
+internal/desktop/i18n      JSON language catalogs and language matching
+internal/update            GitHub Releases check, checksum and MSI install
 internal/inbox             browser-to-desktop request queue
+.agents/skills             MyGo agent skills installed with `mygo install-skills`
 extensions/downloadx       Chrome/Edge MV3 extension
 installer/                 WiX source, native host manifest, icon and license
 scripts/build-msi.ps1      Windows MSI build

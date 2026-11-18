@@ -12,6 +12,8 @@ func newTestApp(t *testing.T) *App {
 	app := New()
 	app.lang.Set("en")
 	app.language = "en"
+	app.languageAuto = false
+	app.languageChoice = "en"
 	return app
 }
 
@@ -22,29 +24,26 @@ func TestViewBuilds(t *testing.T) {
 	tester := ui.NewTester(app.View, 1180, 820)
 	tester.Frame()
 
-	if !tester.HasText("Download anything, fast.") {
-		t.Fatal("hero title missing")
-	}
-	if !tester.HasText("No downloads yet") {
-		t.Fatal("empty state missing")
-	}
-	if !tester.HasText("Settings") {
-		t.Fatal("sidebar missing")
-	}
-	if !tester.HasText("16 CONNECTIONS") {
-		t.Fatal("feature tag missing")
+	for _, want := range []string{"DownloadX", "All downloads", "No downloads here", "Add URL", "Settings"} {
+		if !tester.HasText(want) {
+			t.Fatalf("%q missing", want)
+		}
 	}
 
 	app.page = pageSettings
 	tester.Frame()
-	if !tester.HasText("Save settings") || !tester.HasText("Browser extension") {
-		t.Fatal("settings page missing")
+	for _, want := range []string{"Save settings", "Browser extension", "Start with Windows", "Check for updates automatically"} {
+		if !tester.HasText(want) {
+			t.Fatalf("settings %q missing", want)
+		}
 	}
 
 	app.page = pageAbout
 	tester.Frame()
-	if !tester.HasText("About DownloadX") || !tester.HasText("Protocols") {
-		t.Fatal("about page missing")
+	for _, want := range []string{"About DownloadX", "Protocols", "Native MyGo"} {
+		if !tester.HasText(want) {
+			t.Fatalf("about %q missing", want)
+		}
 	}
 }
 
@@ -55,17 +54,27 @@ func TestViewBuildsChinese(t *testing.T) {
 		t.Fatal("zh-Hans catalog missing")
 	}
 	app.language = "zh-Hans"
+	app.languageAuto = false
+	app.languageChoice = "zh-Hans"
 
 	tester := ui.NewTester(app.View, 1180, 820)
 	tester.Frame()
 
-	if !tester.HasText("极速下载，随心所欲。") {
-		t.Fatal("Chinese hero title missing")
+	for _, want := range []string{"全部下载", "这里还没有下载", "添加链接", "设置"} {
+		if !tester.HasText(want) {
+			t.Fatalf("Chinese %q missing", want)
+		}
 	}
-	if !tester.HasText("下载任务") {
-		t.Fatal("Chinese queue title missing")
-	}
-	if !tester.HasText("设置") {
-		t.Fatal("Chinese settings nav missing")
+}
+
+func TestTableColumnsAtMinimumWidth(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Stop()
+	tester := ui.NewTester(app.View, 900, 620)
+	tester.Frame()
+	for _, want := range []string{"File", "Size", "Speed", "Status"} {
+		if !tester.HasText(want) {
+			t.Fatalf("column %q missing at 900px", want)
+		}
 	}
 }

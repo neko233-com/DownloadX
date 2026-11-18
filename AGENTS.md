@@ -10,10 +10,20 @@ Instructions for coding agents working on DownloadX.
   and **Lobe MyGo** (`github.com/lobehub/lobe-mygo`). No webview, no HTML/CSS/JS
   for the app UI. The GUI is a `-H=windowsgui` binary, so it never opens a
   console window.
-- The UI has a left sidebar with Downloads, Settings and About pages. Settings
-  persist to `%LOCALAPPDATA%\DownloadX\settings.json`; language catalogs live in
+- The UI is an NDM-style workbench: category sidebar, toolbar, sortable
+  download table, status bar and Add Download drawer. Settings persist to
+  `%LOCALAPPDATA%\DownloadX\settings.json`; language catalogs live in
   `internal/desktop/i18n/locales` and user overrides in
   `%LOCALAPPDATA%\DownloadX\locales`.
+- The GUI follows the Windows display language on first launch, starts with
+  Windows by default (HKCU Run), closes to the tray by default, and checks
+  GitHub Releases for updates. Development builds must not register a startup
+  item; `applyStartupSetting` skips versions containing `dev`.
+- Tray and window logos come from `internal/desktop/assets`; the executable
+  icon comes from `assets/downloadx.ico` embedded by
+  `cmd/downloadx-gui/rsrc_windows_amd64.syso`.
+- MyGo agent skills live in `.agents/skills` and are installed with
+  `go run github.com/egoist/mygo/cmd/mygo@v0.9.1 install-skills .`.
 - `downloadx-host`: native messaging host for the Chrome/Edge extension.
 - `extensions/downloadx`: MV3 extension, installed through the browsers'
   external-extension registry and auto-updated without the Web Store.
@@ -48,7 +58,7 @@ gofmt -w .
 go vet ./...
 go test ./...
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1   # if the extension changed
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 1.0.0
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.0
 ```
 
 Then install the MSI:
@@ -129,15 +139,15 @@ Follow `RELEASE.md` exactly. In short:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 1.0.0
-git add -A; git commit -m "release: v1.0.0"; git push origin main
-git tag -a v1.0.0 -m "DownloadX 1.0.0"; git push origin v1.0.0
-gh release create v1.0.0 `
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.0
+git add -A; git commit -m "release: v2.0.0"; git push origin main
+git tag -a v2.0.0 -m "DownloadX 2.0.0"; git push origin v2.0.0
+gh release create v2.0.0 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 1.0.0" --notes "..."
+  --title "DownloadX 2.0.0" --notes "..."
 ```
 
 Then verify that
