@@ -26,7 +26,10 @@ func main() {
 			win.Focus()
 		}
 	})
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { app.Stop() })
+	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+		_ = app.SaveSettings()
+		app.Stop()
+	})
 
 	mygo.App.WhenReady(func() {
 		win := mygo.NewWindow(mygo.WindowOptions{

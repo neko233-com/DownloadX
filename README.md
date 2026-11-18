@@ -37,6 +37,9 @@ BitTorrent — from one CLI or one native window.
 - **Native desktop UI** built with [MyGo](https://github.com/egoist/mygo) and
   [Lobe MyGo](https://github.com/lobehub/lobe-mygo): GPU-drawn, no webview, no
   HTML, no JavaScript. Light and dark follow the system.
+- **Native i18n**: English and Simplified Chinese built in, with a language
+  switch in Settings. Add languages by dropping JSON catalogs into
+  `%LOCALAPPDATA%\DownloadX\locales` — no rebuild required.
 - **Chrome + Edge extension**, registered by the MSI through the browsers'
   external-extension registry and auto-updated from a self-hosted manifest — no
   Web Store, no developer mode.
@@ -107,11 +110,13 @@ Go **1.27.3 or later** is required because of MyGo.
 git clone https://github.com/neko233-com/DownloadX
 cd DownloadX
 go build -o downloadx.exe ./cmd/downloadx
-go build -tags=mygo_nowebview -o downloadx-gui.exe ./cmd/downloadx-gui
+go build -tags=mygo_nowebview -ldflags "-H=windowsgui" -o downloadx-gui.exe ./cmd/downloadx-gui
 ```
 
-`mygo_nowebview` removes WebView2 code from the Windows build, which also avoids
-antivirus heuristics on unsigned executables.
+`-H=windowsgui` makes the desktop app a graphical Windows binary, so opening it
+does not flash a console window. `mygo_nowebview` removes WebView2 code from
+the Windows build, which also avoids antivirus heuristics on unsigned
+executables.
 
 ## CLI
 
@@ -202,6 +207,9 @@ downloadx-gui      # or: downloadx gui
 The window is drawn natively on the GPU by MyGo, using Lobe UI components and
 design tokens. There is no webview and no front-end build.
 
+- Left sidebar with three pages: **Downloads**, **Settings** and **About**.
+- Settings keeps the default folder, connections, protocol and languages in
+  `%LOCALAPPDATA%\DownloadX\settings.json`.
 - Paste a URL, magnet link, `.torrent` path, HLS playlist or DASH manifest.
 - Pick a folder with the native folder picker.
 - Choose the connection count and force a protocol if auto-detection is not
@@ -210,9 +218,35 @@ design tokens. There is no webview and no front-end build.
 - Cancel, retry, remove, copy the output path, or reveal it in the file manager.
 - Progress updates include speed, ETA, segment counts and torrent peers.
 
-| Dark | Light |
+| Downloads | Settings |
 | --- | --- |
-| ![Dark](docs/gui-preview-dark.png) | ![Light](docs/gui-preview-light.png) |
+| ![Dark](docs/gui-preview-dark.png) | ![Settings](docs/gui-preview-settings-dark.png) |
+
+Light previews: [downloads](docs/gui-preview-light.png) ·
+[settings](docs/gui-preview-settings-light.png).
+
+### Languages
+
+English and Simplified Chinese ship with the app. Pick a language under
+**Settings → General → Language**.
+
+To add a language without rebuilding, drop a JSON catalog into
+`%LOCALAPPDATA%\DownloadX\locales` (for example `ja.json`):
+
+```json
+{
+  "name": "日本語",
+  "messages": {
+    "nav.downloads": "ダウンロード",
+    "nav.settings": "設定",
+    "nav.about": "情報",
+    "hero.title": "高速ダウンロード。"
+  }
+}
+```
+
+Missing keys fall back to English. The file name (`ja`) is the language code
+shown to the app; the `name` is what Settings displays.
 
 ## Protocol support
 
@@ -244,10 +278,10 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.2
-git tag -a v0.2.2 -m "DownloadX 0.2.2"
-git push origin v0.2.2
-gh release create v0.2.2 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.3.0
+git tag -a v0.3.0 -m "DownloadX 0.3.0"
+git push origin v0.3.0
+gh release create v0.3.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
 The build scripts produce `dist\DownloadX-windows-amd64.msi` and
@@ -275,6 +309,7 @@ internal/bt                anacrolix/torrent adapter
 internal/engine            task model, naming, resume state, rate limiter
 internal/progress          TTY / plain / JSON progress reporters
 internal/desktop           MyGo + Lobe UI window, queue manager
+internal/desktop/i18n      JSON language catalogs and loader
 internal/inbox             browser-to-desktop request queue
 extensions/downloadx       Chrome/Edge MV3 extension
 installer/                 WiX source, native host manifest, icon and license

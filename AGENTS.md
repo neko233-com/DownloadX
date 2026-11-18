@@ -8,7 +8,12 @@ Instructions for coding agents working on DownloadX.
 - `downloadx`: CLI (HTTP/FTP/HLS/DASH/BitTorrent, 16 connections by default).
 - `downloadx-gui`: native desktop app built with **MyGo** (`github.com/egoist/mygo`)
   and **Lobe MyGo** (`github.com/lobehub/lobe-mygo`). No webview, no HTML/CSS/JS
-  for the app UI.
+  for the app UI. The GUI is a `-H=windowsgui` binary, so it never opens a
+  console window.
+- The UI has a left sidebar with Downloads, Settings and About pages. Settings
+  persist to `%LOCALAPPDATA%\DownloadX\settings.json`; language catalogs live in
+  `internal/desktop/i18n/locales` and user overrides in
+  `%LOCALAPPDATA%\DownloadX\locales`.
 - `downloadx-host`: native messaging host for the Chrome/Edge extension.
 - `extensions/downloadx`: MV3 extension, installed through the browsers'
   external-extension registry and auto-updated without the Web Store.
@@ -43,7 +48,7 @@ gofmt -w .
 go vet ./...
 go test ./...
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1   # if the extension changed
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.2
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.3.0
 ```
 
 Then install the MSI:
@@ -80,7 +85,11 @@ Get-ItemProperty "HKLM:\SOFTWARE\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhc
 Get-ItemProperty "HKLM:\SOFTWARE\Wow6432Node\Google\Chrome\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
 Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Edge\Extensions\pdlpjmbjgipkbjekncinhchgbahpgbng"
 Get-ItemProperty "HKLM:\SOFTWARE\Google\Chrome\NativeMessagingHosts\com.neko233.downloadx"
+Get-StartApps | Where-Object { $_.Name -eq "DownloadX" }
 ```
+
+The Start-menu shortcut must be searchable. Its folder and `.lnk` must not carry
+`NotContentIndexed`; the MSI clears that attribute after installation.
 
 Leave DownloadX installed so the user can try it. Only uninstall when asked:
 
@@ -120,15 +129,15 @@ Follow `RELEASE.md` exactly. In short:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.2.2
-git add -A; git commit -m "release: v0.2.2"; git push origin main
-git tag -a v0.2.2 -m "DownloadX 0.2.2"; git push origin v0.2.2
-gh release create v0.2.2 `
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 0.3.0
+git add -A; git commit -m "release: v0.3.0"; git push origin main
+git tag -a v0.3.0 -m "DownloadX 0.3.0"; git push origin v0.3.0
+gh release create v0.3.0 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 0.2.2" --notes "..."
+  --title "DownloadX 0.3.0" --notes "..."
 ```
 
 Then verify that

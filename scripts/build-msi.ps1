@@ -56,12 +56,13 @@ $commit = "unknown"
 try { $commit = ((git rev-parse --short HEAD) 2>$null).Trim() } catch {}
 $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
 $ldflags = "-s -w -X github.com/neko233-com/DownloadX/internal/version.Version=$Version -X github.com/neko233-com/DownloadX/internal/version.Commit=$commit -X github.com/neko233-com/DownloadX/internal/version.Date=$date"
+$guiLdflags = "$ldflags -H=windowsgui"
 
 $env:CGO_ENABLED = "0"
 Write-Host "Building downloadx.exe and downloadx-gui.exe ($Version)..."
 go build -trimpath -tags=mygo_nowebview -ldflags $ldflags -o (Join-Path $payload "downloadx.exe") ./cmd/downloadx
 if ($LASTEXITCODE -ne 0) { throw "go build downloadx failed" }
-go build -trimpath -tags=mygo_nowebview -ldflags $ldflags -o (Join-Path $payload "downloadx-gui.exe") ./cmd/downloadx-gui
+go build -trimpath -tags=mygo_nowebview -ldflags $guiLdflags -o (Join-Path $payload "downloadx-gui.exe") ./cmd/downloadx-gui
 if ($LASTEXITCODE -ne 0) { throw "go build downloadx-gui failed" }
 go build -trimpath -ldflags $ldflags -o (Join-Path $payload "downloadx-host.exe") ./cmd/downloadx-host
 if ($LASTEXITCODE -ne 0) { throw "go build downloadx-host failed" }

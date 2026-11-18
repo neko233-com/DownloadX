@@ -19,8 +19,11 @@ func TestPreviewImage(t *testing.T) {
 	if out == "" {
 		t.Skip("set DOWNLOADX_PREVIEW=path.png to render the window")
 	}
+	t.Setenv("LOCALAPPDATA", t.TempDir())
 	app := New()
 	defer app.Stop()
+	app.lang.Set("en")
+	app.language = "en"
 
 	now := time.Now()
 	app.manager.mu.Lock()
@@ -71,10 +74,14 @@ func TestPreviewImage(t *testing.T) {
 	for _, spec := range []struct {
 		name string
 		dark bool
+		page page
 	}{
-		{"dark", true},
-		{"light", false},
+		{"dark", true, pageDownloads},
+		{"light", false, pageDownloads},
+		{"settings-dark", true, pageSettings},
+		{"settings-light", false, pageSettings},
 	} {
+		app.page = spec.page
 		tester := ui.NewTester(app.View, 1180, 820)
 		tester.SetDark(spec.dark)
 		tester.Frame()

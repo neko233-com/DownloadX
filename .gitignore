@@ -26,3 +26,6 @@ Thumbs.db
 extensions/downloadx.pem
 extensions/public.der
 extensions/downloadx.crx
+
+# The Start-menu shortcut is a source asset
+!installer/DownloadX.lnk

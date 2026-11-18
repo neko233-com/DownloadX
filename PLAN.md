@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.27 standard library; `github.com/egoist/mygo` for the native, GPU-drawn desktop UI and `github.com/lobehub/lobe-mygo` for Lobe UI components and tokens (no webview, no HTML, no JavaScript); `github.com/anacrolix/torrent` for BitTorrent; no cgo. Optional `ffmpeg` is used only to mux separate DASH audio/video when present.
 
-**Status:** implemented — Windows CLI + MSI, all five protocols, native GUI, Chrome/Edge extension with store-free auto-update, tests, manual releases; no GitHub Actions.
+**Status:** implemented — Windows CLI + MSI, all five protocols, native GUI with sidebar/settings and i18n, Chrome/Edge extension with store-free auto-update, tests, manual releases; no GitHub Actions.
 
 **Spec:** this document — the Design section below is the spec.
 
@@ -126,6 +126,7 @@ internal/segdl/                concurrent part fetch/rename/concat pipeline
 internal/bt/                   anacrolix/torrent adapter
 internal/progress/             TTY/plain/JSON reporters
 internal/desktop/              MyGo + Lobe UI window, queue manager, previews
+internal/desktop/i18n/         embedded JSON language catalogs and loader
 internal/inbox/                browser-to-desktop request queue
 internal/version/              version variables (ldflags)
 extensions/downloadx/          Chrome/Edge MV3 extension
@@ -332,3 +333,23 @@ RELEASE.md, AGENTS.md          manual release and agent instructions
 - [x] **Step 3: Add the host, native-messaging registration and Chrome/Edge external-extension `update_url` entries to the MSI; lock the install directory so the native manifest path stays valid.**
 - [x] **Step 4: Add `scripts/build-extension.ps1`** (Chrome pack, CRX/SHA256, refreshed `updates.xml` and `docs/extension/`) and verify the native host round-trip.
 - [x] **Step 5: Update docs for one-line install, browser restart, the one-time Keep prompt, self-hosted updates and manual release; run tests, build the MSI and validate it.**
+
+### Task 12: i18n, NDM-style sidebar, settings and no console window
+
+**Files:**
+- Create: `internal/desktop/i18n/i18n.go`, `internal/desktop/i18n/locales/{en,zh-Hans}.json`, `internal/desktop/settings.go`, `cmd/downloadx-gui/rsrc_windows_amd64.syso`, `installer/DownloadX.lnk`
+- Modify: `internal/desktop/view.go`, `cmd/downloadx-gui/main.go`, `scripts/build-msi.ps1`, `installer/DownloadX.wxs`, `README.md`, `AGENTS.md`, `RELEASE.md`
+
+**Interfaces:**
+- `i18n.Load() *Bundle`, `Bundle.Set(code)`, `Bundle.T(key)`, `Bundle.Tf(key, args...)`, `Bundle.Languages()`.
+- Built-in catalogs: English and Simplified Chinese. User catalogs in `%LOCALAPPDATA%\DownloadX\locales` override built-ins by file code.
+- `App.SaveSettings()`/`loadSettings()` persist `%LOCALAPPDATA%\DownloadX\settings.json` (`language`, `dir`, `connections`, `type`).
+- GUI left sidebar pages: Downloads, Settings, About. Settings has language, folder, connections, protocol, save, extension info.
+- GUI binary is linked with `-H=windowsgui` and embeds `assets/downloadx.ico` through a `.syso` resource.
+
+- [x] **Step 1: Build the i18n bundle and en/zh-Hans JSON catalogs; fall back to English for missing keys and load external user catalogs.**
+- [x] **Step 2: Persist settings and add language/folder/connections/protocol controls under Settings; initialize language from the system locale on first run.**
+- [x] **Step 3: Replace the single page with an NDM-style left sidebar (Downloads, Settings, About) and translate every UI string.**
+- [x] **Step 4: Link the GUI as a Windows GUI subsystem binary and embed the app icon so double-clicking never opens a console window.**
+- [x] **Step 5: Fix the Start-menu shortcut indexing with a normal `.lnk` plus a post-install attribute clear; verify `Get-StartApps` lists DownloadX.**
+- [x] **Step 6: Regenerate previews, update docs/tests, build and install the MSI, publish the manual release.**
