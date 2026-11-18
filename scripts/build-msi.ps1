@@ -69,6 +69,7 @@ if ($LASTEXITCODE -ne 0) { throw "go build downloadx-host failed" }
 $icon = Join-Path $root "assets\downloadx.ico"
 $license = Join-Path $root "installer\License.rtf"
 $manifest = Join-Path $root "installer\com.neko233.downloadx.json"
+$shortcut = Join-Path $root "installer\DownloadX.lnk"
 $wxs = Join-Path $root "installer\DownloadX.wxs"
 $wixobj = Join-Path $obj "DownloadX.wixobj"
 $msi = Join-Path $OutDir "DownloadX-windows-amd64.msi"
@@ -80,6 +81,7 @@ Write-Host "Compiling WiX..."
     "-dIconFile=$icon" `
     "-dLicenseFile=$license" `
     "-dManifestFile=$manifest" `
+    "-dShortcutFile=$shortcut" `
     -out $wixobj $wxs
 if ($LASTEXITCODE -ne 0) { throw "candle failed" }
 
