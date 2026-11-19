@@ -1,6 +1,8 @@
 package desktop
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -91,6 +93,35 @@ func TestViewBuildsGermanAndJapanese(t *testing.T) {
 		if !tester.HasText(want) {
 			t.Fatalf("Japanese %q missing", want)
 		}
+	}
+}
+
+func TestAddDrawerEnterStartsDownload(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "2")
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	app := newTestApp(t)
+	defer app.Stop()
+	app.dir = t.TempDir()
+	app.addOpen = true
+	tester := ui.NewTester(app.View, 1180, 820)
+	tester.Frame()
+	tester.Type(srv.URL + "/file.bin")
+	tester.Key(0, ui.KeyEnter)
+	tester.Frame()
+
+	jobs := app.manager.Snapshot()
+	if len(jobs) != 1 {
+		t.Fatalf("jobs after Enter = %d, want 1", len(jobs))
+	}
+	if jobs[0].URL != srv.URL+"/file.bin" {
+		t.Fatalf("job URL = %q", jobs[0].URL)
+	}
+	if app.addOpen {
+		t.Fatal("Add drawer stayed open after Enter")
 	}
 }
 

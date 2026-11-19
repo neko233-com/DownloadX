@@ -29,11 +29,14 @@ func TestLegacySettingsKeepNewDefaults(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"dir":"C:\\Downloads","connections":8}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"language":"en","dir":"C:\\Downloads","connections":8}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	app := New()
 	defer app.Stop()
+	if !app.languageAuto || app.languageChoice != "system" {
+		t.Fatalf("legacy pinned language was not migrated to system: auto=%v choice=%q", app.languageAuto, app.languageChoice)
+	}
 	if !app.startWithWindows || !app.closeToTray || !app.autoCheckUpdates || !app.monitorClipboard {
 		t.Fatalf("legacy settings turned new features off: %+v", app)
 	}
