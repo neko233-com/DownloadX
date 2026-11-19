@@ -26,7 +26,7 @@ func TestViewBuilds(t *testing.T) {
 	tester := ui.NewTester(app.View, 1180, 820)
 	tester.Frame()
 
-	for _, want := range []string{"DownloadX", "All downloads", "No downloads here", "Add URL", "Settings"} {
+	for _, want := range []string{"DownloadX", "All downloads", "No downloads here", "Add URL", "Settings", "@neko233-com"} {
 		if !tester.HasText(want) {
 			t.Fatalf("%q missing", want)
 		}
