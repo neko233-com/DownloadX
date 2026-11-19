@@ -10,10 +10,11 @@ import (
 func (a *App) startTray() {
 	menu := a.buildTrayMenu()
 	tray, err := mygo.NewTray(mygo.TrayOptions{
-		ID:      "downloadx",
-		Icon:    trayPNG,
-		ToolTip: a.t("tray.tooltip", "DownloadX"),
-		Menu:    menu,
+		ID:             "downloadx",
+		Icon:           trayPNG,
+		IconIsTemplate: true,
+		ToolTip:        a.t("tray.tooltip", "DownloadX"),
+		Menu:           menu,
 	})
 	if err != nil {
 		// Without a tray icon, hiding the window would strand the app in the
