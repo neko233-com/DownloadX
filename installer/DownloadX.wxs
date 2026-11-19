@@ -113,8 +113,15 @@
                   Impersonate="no"
                   Return="ignore"
                   ExeCommand='cmd.exe /c attrib -I +A "%ProgramData%\Microsoft\Windows\Start Menu\Programs\DownloadX" &amp; attrib -I +A "%ProgramData%\Microsoft\Windows\Start Menu\Programs\DownloadX\DownloadX.lnk"' />
+    <CustomAction Id="RemoveDownloadXRun"
+                  Directory="SystemFolder"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore"
+                  ExeCommand='reg.exe delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v DownloadX /f' />
     <InstallExecuteSequence>
       <Custom Action="ClearShortcutNotContentIndexed" After="CreateShortcuts">NOT REMOVE</Custom>
+      <Custom Action="RemoveDownloadXRun" After="RemoveFiles">REMOVE="ALL"</Custom>
     </InstallExecuteSequence>
   </Product>
 </Wix>

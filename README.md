@@ -313,10 +313,10 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.0
-git tag -a v2.0.0 -m "DownloadX 2.0.0"
-git push origin v2.0.0
-gh release create v2.0.0 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.1
+git tag -a v2.0.1 -m "DownloadX 2.0.1"
+git push origin v2.0.1
+gh release create v2.0.1 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
 The build scripts produce `dist\DownloadX-windows-amd64.msi` and

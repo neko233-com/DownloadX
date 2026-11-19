@@ -29,6 +29,25 @@ func TestBuiltinCatalogs(t *testing.T) {
 	}
 }
 
+func TestCatalogsComplete(t *testing.T) {
+	t.Setenv("LOCALAPPDATA", t.TempDir())
+	b := Load()
+	en := b.catalogs["en"]
+	if en == nil {
+		t.Fatal("missing en catalog")
+	}
+	for code, catalog := range b.catalogs {
+		if code == "en" {
+			continue
+		}
+		for key := range en.Messages {
+			if _, ok := catalog.Messages[key]; !ok {
+				t.Errorf("%s is missing %q", code, key)
+			}
+		}
+	}
+}
+
 func TestMatchPreferredLanguages(t *testing.T) {
 	t.Setenv("LOCALAPPDATA", t.TempDir())
 	b := Load()
