@@ -21,7 +21,7 @@ func TestPreviewImage(t *testing.T) {
 		t.Skip("set DOWNLOADX_PREVIEW=path.png to render the window")
 	}
 	t.Setenv("LOCALAPPDATA", t.TempDir())
-	version.Version = "2.0.2"
+	version.Version = "2.0.3"
 	app := New()
 	defer app.Stop()
 	app.lang.Set("en")

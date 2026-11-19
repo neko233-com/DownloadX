@@ -58,7 +58,7 @@ gofmt -w .
 go vet ./...
 go test ./...
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1   # if the extension changed
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.2
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
 ```
 
 Then install the MSI:
@@ -139,15 +139,15 @@ Follow `RELEASE.md` exactly. In short:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.2
-git add -A; git commit -m "release: v2.0.2"; git push origin main
-git tag -a v2.0.2 -m "DownloadX 2.0.2"; git push origin v2.0.2
-gh release create v2.0.2 `
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
+git add -A; git commit -m "release: v2.0.3"; git push origin main
+git tag -a v2.0.3 -m "DownloadX 2.0.3"; git push origin v2.0.3
+gh release create v2.0.3 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 2.0.2" --notes "..."
+  --title "DownloadX 2.0.3" --notes "..."
 ```
 
 Then verify that

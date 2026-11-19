@@ -50,6 +50,8 @@ func TestAddSourceLocalTorrent(t *testing.T) {
 
 	cfg := torrent.NewDefaultClientConfig()
 	cfg.DataDir = dir
+	cfg.ListenPort = 0
+	cfg.NoDHT = true
 	cfg.NoDefaultPortForwarding = true
 	client, err := torrent.NewClient(cfg)
 	if err != nil {
@@ -105,6 +107,8 @@ func TestFetchMetaInfoHTTP(t *testing.T) {
 func TestAddSourceRejectsGarbage(t *testing.T) {
 	cfg := torrent.NewDefaultClientConfig()
 	cfg.DataDir = t.TempDir()
+	cfg.ListenPort = 0
+	cfg.NoDHT = true
 	cfg.NoDefaultPortForwarding = true
 	client, err := torrent.NewClient(cfg)
 	if err != nil {

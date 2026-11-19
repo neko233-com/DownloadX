@@ -2,7 +2,14 @@ package ftp
 
 import (
 	"bufio"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
+	"math/big"
 	"net"
 	"strconv"
 	"strings"
@@ -21,6 +28,9 @@ type testFTPServer struct {
 	sizeOK    bool
 	restOK    bool
 	missing   bool
+	tlsConfig *tls.Config
+	tlsAuths  int
+	tlsData   int
 	mu        sync.Mutex
 	restSeen  []int64
 	conns     map[net.Conn]struct{}
@@ -51,6 +61,38 @@ func newTestFTPServer(t *testing.T, data []byte) *testFTPServer {
 
 func (s *testFTPServer) URL(path string) string {
 	return fmt.Sprintf("ftp://%s:%s@%s%s", s.user, s.pass, s.ln.Addr().String(), path)
+}
+
+// enableTLS makes the server speak explicit FTPS for the next connections.
+func (s *testFTPServer) enableTLS(t *testing.T) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "downloadx-test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}},
+		MinVersion:   tls.VersionTLS12,
+	}
+}
+
+func (s *testFTPServer) tlsCounts() (auths, data int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.tlsAuths, s.tlsData
 }
 
 func (s *testFTPServer) Close() {
@@ -95,6 +137,11 @@ func (s *testFTPServer) acceptLoop() {
 	}
 }
 
+type dataResult struct {
+	conn net.Conn
+	err  error
+}
+
 func (s *testFTPServer) handle(c net.Conn) {
 	r := bufio.NewReader(c)
 	w := bufio.NewWriter(c)
@@ -105,14 +152,18 @@ func (s *testFTPServer) handle(c net.Conn) {
 	reply("220 test ftp ready")
 
 	var (
-		dataLn net.Listener
-		rest   int64
+		dataCh  chan dataResult
+		dataCon net.Conn
+		rest    int64
+		protP   bool
 	)
-	defer func() {
-		if dataLn != nil {
-			_ = dataLn.Close()
+	cleanupData := func() {
+		if dataCon != nil {
+			_ = dataCon.Close()
+			dataCon = nil
 		}
-	}()
+	}
+	defer cleanupData()
 
 	for {
 		line, err := r.ReadString('\n')
@@ -124,6 +175,31 @@ func (s *testFTPServer) handle(c net.Conn) {
 		verb = strings.ToUpper(verb)
 
 		switch verb {
+		case "AUTH":
+			if strings.EqualFold(arg, "TLS") && s.tlsConfig != nil {
+				reply("234 AUTH TLS successful")
+				tc := tls.Server(c, s.tlsConfig)
+				if err := tc.Handshake(); err != nil {
+					return
+				}
+				c = tc
+				r = bufio.NewReader(c)
+				w = bufio.NewWriter(c)
+				s.mu.Lock()
+				s.tlsAuths++
+				s.mu.Unlock()
+			} else {
+				reply("502 AUTH not supported")
+			}
+		case "PBSZ":
+			reply("200 PBSZ set to 0")
+		case "PROT":
+			if strings.EqualFold(arg, "P") && s.tlsConfig != nil {
+				protP = true
+				reply("200 PROT P accepted")
+			} else {
+				reply("536 PROT not supported")
+			}
 		case "USER":
 			reply("331 password required")
 		case "PASS":
@@ -158,15 +234,14 @@ func (s *testFTPServer) handle(c net.Conn) {
 			s.mu.Unlock()
 			reply("350 restart at %d", n)
 		case "EPSV", "PASV":
-			if dataLn != nil {
-				_ = dataLn.Close()
-			}
+			cleanupData()
 			ln, err := net.Listen("tcp", "127.0.0.1:0")
 			if err != nil {
 				reply("425 cannot listen")
 				continue
 			}
-			dataLn = ln
+			dataCh = make(chan dataResult, 1)
+			go s.acceptData(ln, dataCh, protP)
 			port := ln.Addr().(*net.TCPAddr).Port
 			if verb == "EPSV" {
 				reply("229 Entering Extended Passive Mode (|||%d|)", port)
@@ -178,18 +253,22 @@ func (s *testFTPServer) handle(c net.Conn) {
 				reply("550 no such file")
 				continue
 			}
-			if dataLn == nil {
+			if dataCh == nil {
 				reply("425 use EPSV or PASV first")
 				continue
 			}
-			_ = dataLn.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second))
-			dconn, err := dataLn.Accept()
-			if err != nil {
-				reply("425 cannot accept")
+			var res dataResult
+			select {
+			case res = <-dataCh:
+			case <-time.After(5 * time.Second):
+				res.err = fmt.Errorf("data connection timeout")
+			}
+			dataCh = nil
+			if res.err != nil {
+				reply("425 %v", res.err)
 				continue
 			}
-			_ = dataLn.Close()
-			dataLn = nil
+			dataCon = res.conn
 			reply("150 opening data connection")
 			offset := rest
 			rest = 0
@@ -199,8 +278,8 @@ func (s *testFTPServer) handle(c net.Conn) {
 			if offset > int64(len(s.data)) {
 				offset = int64(len(s.data))
 			}
-			_, _ = dconn.Write(s.data[offset:])
-			_ = dconn.Close()
+			_, _ = dataCon.Write(s.data[offset:])
+			cleanupData()
 			reply("226 transfer complete")
 		case "QUIT":
 			reply("221 bye")
@@ -209,4 +288,32 @@ func (s *testFTPServer) handle(c net.Conn) {
 			reply("500 unknown command %s", verb)
 		}
 	}
+}
+
+// acceptData accepts the client's passive data connection immediately, as
+// real FTP servers do. Explicit FTPS protects the data channel before RETR.
+func (s *testFTPServer) acceptData(ln net.Listener, ch chan<- dataResult, secure bool) {
+	defer ln.Close()
+	_ = ln.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second))
+	conn, err := ln.Accept()
+	if err != nil {
+		ch <- dataResult{err: err}
+		return
+	}
+	if secure {
+		tc := tls.Server(conn, s.tlsConfig)
+		if err := tc.Handshake(); err != nil {
+			_ = conn.Close()
+			ch <- dataResult{err: err}
+			return
+		}
+		conn = tc
+		s.mu.Lock()
+		s.tlsData++
+		s.mu.Unlock()
+	}
+	s.mu.Lock()
+	s.conns[conn] = struct{}{}
+	s.mu.Unlock()
+	ch <- dataResult{conn: conn}
 }

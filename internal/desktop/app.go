@@ -4,6 +4,8 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -246,10 +248,13 @@ func (a *App) startClipboard() {
 			return
 		}
 		text := strings.TrimSpace(string(raw))
-		if !looksDownloadable(text) || text == a.lastClipboard {
+		if text == "" || text == a.lastClipboard {
 			return
 		}
 		a.lastClipboard = text
+		if !looksDownloadable(text) {
+			return
+		}
 		a.win.Update(func() {
 			a.url = text
 			a.addOpen = true
@@ -260,15 +265,48 @@ func (a *App) startClipboard() {
 }
 
 func looksDownloadable(s string) bool {
+	s = strings.TrimSpace(s)
 	if len(s) < 8 || strings.ContainsAny(s, "\r\n\t ") {
 		return false
 	}
 	lower := strings.ToLower(s)
-	return strings.HasPrefix(lower, "http://") ||
-		strings.HasPrefix(lower, "https://") ||
-		strings.HasPrefix(lower, "ftp://") ||
-		strings.HasPrefix(lower, "ftps://") ||
-		strings.HasPrefix(lower, "magnet:")
+	if strings.HasPrefix(lower, "magnet:") {
+		return true
+	}
+	if !strings.HasPrefix(lower, "http://") &&
+		!strings.HasPrefix(lower, "https://") &&
+		!strings.HasPrefix(lower, "ftp://") &&
+		!strings.HasPrefix(lower, "ftps://") {
+		return false
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+	ext := strings.ToLower(path.Ext(u.Path))
+	if ext == "" {
+		return false
+	}
+	_, ok := downloadExtensions[ext]
+	return ok
+}
+
+// downloadExtensions are the suffixes that are safe to offer automatically
+// when a link is copied. A normal page URL has no suffix and stays silent;
+// the user can still paste it into Add Download explicitly.
+var downloadExtensions = map[string]struct{}{
+	".7z": {}, ".apk": {}, ".appx": {}, ".avi": {}, ".bin": {},
+	".bz2": {}, ".cab": {}, ".csv": {}, ".deb": {}, ".dmg": {},
+	".doc": {}, ".docx": {}, ".epub": {}, ".exe": {}, ".flac": {},
+	".flv": {}, ".gz": {}, ".img": {}, ".iso": {}, ".jar": {},
+	".m3u8": {}, ".m4a": {}, ".m4v": {}, ".mkv": {}, ".mov": {},
+	".mp3": {}, ".mp4": {}, ".mpd": {}, ".mpeg": {}, ".mpg": {},
+	".msi": {}, ".msix": {}, ".ogg": {}, ".opus": {}, ".pdf": {},
+	".pkg": {}, ".ppt": {}, ".pptx": {}, ".rar": {}, ".rpm": {},
+	".rtf": {}, ".tar": {}, ".tgz": {}, ".torrent": {}, ".ts": {},
+	".txt": {}, ".vhd": {}, ".vhdx": {}, ".wav": {}, ".webm": {},
+	".webp": {}, ".wim": {}, ".wma": {}, ".wmv": {}, ".xz": {},
+	".zip": {}, ".zst": {},
 }
 
 func (a *App) startUpdateSchedule() {

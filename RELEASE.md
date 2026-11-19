@@ -47,7 +47,7 @@ tagging; browsers update from that copy.
 Pick the version without a leading `v`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.2
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
 ```
 
 This produces:
@@ -86,21 +86,21 @@ Uninstall from **Settings → Apps → DownloadX**, or find the product code und
 
 ```powershell
 git add -A
-git commit -m "release: v2.0.2"
+git commit -m "release: v2.0.3"
 git push origin main
-git tag -a v2.0.2 -m "DownloadX 2.0.2"
-git push origin v2.0.2
+git tag -a v2.0.3 -m "DownloadX 2.0.3"
+git push origin v2.0.3
 ```
 
 ## 6. Create the GitHub release
 
 ```powershell
-gh release create v2.0.2 `
+gh release create v2.0.3 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 2.0.2" `
+  --title "DownloadX 2.0.3" `
   --notes "Windows x64 installer, Chrome/Edge extension, segmented HTTP/FTP, HLS, DASH, BitTorrent, and the native MyGo + Lobe UI desktop app."
 ```
 

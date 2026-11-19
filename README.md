@@ -236,7 +236,9 @@ design tokens. There is no webview and no front-end build.
   protocol. Press Enter in the URL field or click **Start download**.
 - **Settings**: follow-Windows language selection, start with Windows, close to
   tray, automatic update checks, clipboard monitoring, default folder,
-  connections and protocol.
+  connections and protocol. Clipboard monitoring only offers links with a known
+  download suffix (`.zip`, `.msi`, `.mp4`, `.m3u8`, `.torrent`, etc.), so
+  copying a normal page URL does not open the Add Download drawer.
 - **Updates**: manual **Check now**, automatic startup checks, release notes,
   download progress, checksum verification and **Install and restart**.
 - **Tray**: open the app, pause/resume all, toggle start with Windows, check for
@@ -313,10 +315,10 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.2
-git tag -a v2.0.2 -m "DownloadX 2.0.2"
-git push origin v2.0.2
-gh release create v2.0.2 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
+git tag -a v2.0.3 -m "DownloadX 2.0.3"
+git push origin v2.0.3
+gh release create v2.0.3 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
 The build scripts produce `dist\DownloadX-windows-amd64.msi` and
