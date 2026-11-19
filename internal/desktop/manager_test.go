@@ -2,7 +2,12 @@ package desktop
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func newTestManager() *Manager {
@@ -67,6 +72,57 @@ func TestJobCategory(t *testing.T) {
 			t.Errorf("Category(%q) = %q, want %q", raw, got, want)
 		}
 	}
+}
+
+func TestManagerReferrerAndFilename(t *testing.T) {
+	const body = "referrer-protected-payload"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Referer() != "https://origin.example/page" {
+			http.Error(w, "missing referrer", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Length", "26")
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	m := NewManager(1)
+	defer m.Stop()
+	job, err := m.Add(Request{
+		URL:         srv.URL + "/ignored-name.bin",
+		Dir:         dir,
+		Filename:    "custom.bin",
+		Referrer:    "https://origin.example/page",
+		Connections: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		var got Job
+		for _, j := range m.Snapshot() {
+			if j.ID == job.ID {
+				got = j
+			}
+		}
+		if got.Status == StatusDone {
+			data, err := os.ReadFile(filepath.Join(dir, "custom.bin"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != body {
+				t.Fatalf("body = %q", data)
+			}
+			return
+		}
+		if got.Status == StatusError {
+			t.Fatalf("download failed: %s", got.Err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for download")
 }
 
 func TestManagerCounts(t *testing.T) {

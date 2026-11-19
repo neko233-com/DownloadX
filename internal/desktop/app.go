@@ -308,8 +308,6 @@ func (a *App) CheckUpdates(manual bool) {
 		rel, err := update.Check(ctx, version.Version)
 		mygo.RunOnMain(func() {
 			a.updateChecking = false
-			a.lastUpdateCheck = time.Now().Unix()
-			_ = a.SaveSettings()
 			switch {
 			case err != nil:
 				a.updateState = updateError
@@ -318,12 +316,16 @@ func (a *App) CheckUpdates(manual bool) {
 					a.showToast(feedback.ToastError, a.t("toast.checkFailed"), err.Error())
 				}
 			case rel == nil:
+				a.lastUpdateCheck = time.Now().Unix()
+				_ = a.SaveSettings()
 				a.updateState = updateUptodate
 				a.updateRelease = nil
 				if manual {
 					a.showToast(feedback.ToastSuccess, a.t("toast.upToDate"), "")
 				}
 			default:
+				a.lastUpdateCheck = time.Now().Unix()
+				_ = a.SaveSettings()
 				a.updateState = updateAvailable
 				a.updateRelease = rel
 				a.updateErr = ""

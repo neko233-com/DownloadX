@@ -34,6 +34,7 @@ type Request struct {
 	URL         string
 	Dir         string
 	Filename    string
+	Referrer    string
 	Connections int
 	Type        engine.Type
 }
@@ -44,6 +45,7 @@ type Job struct {
 	URL         string
 	Dir         string
 	Filename    string
+	Referrer    string
 	Connections int
 	Type        engine.Type
 	Status      Status
@@ -89,23 +91,6 @@ func clamp01(v float64) float64 {
 		return 1
 	}
 	return v
-}
-
-// SafeFilename keeps a user-supplied name a single Windows file name.
-func SafeFilename(name string) string {
-	name = strings.TrimSpace(name)
-	name = strings.Map(func(r rune) rune {
-		switch r {
-		case '\\', '/', ':', '*', '?', '"', '<', '>', '|', 0:
-			return '_'
-		}
-		return r
-	}, name)
-	name = strings.Trim(name, ". ")
-	if name == "" || name == "." || name == ".." {
-		return "download"
-	}
-	return name
 }
 
 // Category groups a job by the kind of file it downloads.
@@ -258,6 +243,7 @@ func (m *Manager) processInbox(dir string) {
 			URL:         req.URL,
 			Dir:         dir,
 			Filename:    req.Filename,
+			Referrer:    req.Referrer,
 			Connections: engine.DefaultConnections,
 			Type:        engine.TypeAuto,
 		}); err != nil {
@@ -294,6 +280,7 @@ func (m *Manager) Add(req Request) (*Job, error) {
 		URL:         url,
 		Dir:         strings.TrimSpace(req.Dir),
 		Filename:    strings.TrimSpace(req.Filename),
+		Referrer:    strings.TrimSpace(req.Referrer),
 		Connections: conn,
 		Type:        typ,
 		Status:      StatusQueued,
@@ -449,7 +436,7 @@ func (m *Manager) Retry(id string) error {
 			m.mu.Unlock()
 			return errors.New("the download is still running")
 		}
-		req = Request{URL: j.URL, Dir: j.Dir, Filename: j.Filename, Connections: j.Connections, Type: j.Type}
+		req = Request{URL: j.URL, Dir: j.Dir, Filename: j.Filename, Referrer: j.Referrer, Connections: j.Connections, Type: j.Type}
 		found = true
 		break
 	}
@@ -550,6 +537,7 @@ func (m *Manager) run(job *Job) {
 		Dir:         job.Dir,
 		Connections: job.Connections,
 		Type:        job.Type,
+		Referer:     job.Referrer,
 		Timeout:     30 * time.Second,
 		Retries:     3,
 		HLSQuality:  "best",
@@ -559,7 +547,7 @@ func (m *Manager) run(job *Job) {
 		strings.HasPrefix(strings.ToLower(job.URL), "magnet:") ||
 		strings.HasSuffix(strings.ToLower(job.URL), ".torrent")
 	if job.Filename != "" && !torrent {
-		task.Dest = filepath.Join(job.Dir, SafeFilename(job.Filename))
+		task.Dest = filepath.Join(job.Dir, engine.SanitizeFilename(job.Filename))
 	}
 	task.Progress = func(p engine.Progress) { m.progress(job, p) }
 	m.mu.Unlock()

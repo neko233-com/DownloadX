@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DownloadX",
   "short_name": "DownloadX",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hand downloads from Chrome and Edge to the DownloadX desktop app.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApjVljTSUMz+2TKFV9ATYU2SJtKMVVsfaBH5U3H3CNPSz75BuO16IIIPJMuH1nfLbjSwGz3ZUL4GfoaxblLcnmHQ1iBQSzMqaAlghPig8IQ/5Q+C7RJ/y6IU0Efe0udKYMZOB6npor/ot/lcWtHPsPH/pbrOHSmZiCBvjrrgEsjUY6QtnNrvDWwCePripUHof/OU8zpI9LbfJzFcZnjJiU9vyH8fy0fGgYBtDoKWt2u6YCTe5zedAF2WAk9JNBgSk9tiAPYWPKoU5n7UJS8blig4aJnAnG/UO8jeUlTX9x8PoCm205f8fHXPF/bxxnohj/0ci4IKowWctTVYq/RwpkwIDAQAB",
   "minimum_chrome_version": "102",

@@ -67,6 +67,33 @@ func TestViewBuildsChinese(t *testing.T) {
 	}
 }
 
+func TestViewBuildsGermanAndJapanese(t *testing.T) {
+	app := newTestApp(t)
+	defer app.Stop()
+
+	app.lang.Set("de")
+	app.language = "de"
+	app.languageAuto = false
+	app.languageChoice = "de"
+	tester := ui.NewTester(app.View, 1180, 820)
+	tester.Frame()
+	for _, want := range []string{"Alle Downloads", "Einstellungen", "URL hinzufügen"} {
+		if !tester.HasText(want) {
+			t.Fatalf("German %q missing", want)
+		}
+	}
+
+	app.lang.Set("ja")
+	app.language = "ja"
+	app.languageChoice = "ja"
+	tester.Frame()
+	for _, want := range []string{"すべてのダウンロード", "設定", "URL を追加"} {
+		if !tester.HasText(want) {
+			t.Fatalf("Japanese %q missing", want)
+		}
+	}
+}
+
 func TestTableColumnsAtMinimumWidth(t *testing.T) {
 	app := newTestApp(t)
 	defer app.Stop()

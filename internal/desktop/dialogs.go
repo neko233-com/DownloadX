@@ -42,9 +42,13 @@ func (a *App) addDrawer(c *ui.Context, tk *theme.Tokens) {
 				row := ui.Row(c).FillWidth().Children(func() {
 					f, input := textField(c, tk, &a.url, a.t("add.urlPlaceholder"), lucide.Link2(), 40, 13, true)
 					f.Grow(1).Basis(0)
-					if input.Submitted() {
-						a.startDownload()
-					}
+					input.OnTextKey(func(k ui.TextKey) bool {
+						if k.Key == ui.KeyEnter && k.Mods == 0 {
+							a.startDownload()
+							return true
+						}
+						return false
+					})
 				})
 				_ = row
 			})

@@ -19,7 +19,7 @@ func (a *App) jobTitle(j Job) string {
 		return filepath.Base(j.Path)
 	}
 	if j.Filename != "" {
-		return SafeFilename(j.Filename)
+		return engine.SanitizeFilename(j.Filename)
 	}
 	if name := engine.FilenameFromURL(j.URL); name != "" && name != "download" {
 		return name
