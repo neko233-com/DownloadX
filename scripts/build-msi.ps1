@@ -55,17 +55,55 @@ New-Item -ItemType Directory -Force $payload, $obj, $OutDir | Out-Null
 $commit = "unknown"
 try { $commit = ((git rev-parse --short HEAD) 2>$null).Trim() } catch {}
 $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
-$ldflags = "-s -w -X github.com/neko233-com/DownloadX/internal/version.Version=$Version -X github.com/neko233-com/DownloadX/internal/version.Commit=$commit -X github.com/neko233-com/DownloadX/internal/version.Date=$date"
+$ldflags = "-s -w -buildid= -X github.com/neko233-com/DownloadX/internal/version.Version=$Version -X github.com/neko233-com/DownloadX/internal/version.Commit=$commit -X github.com/neko233-com/DownloadX/internal/version.Date=$date"
 $guiLdflags = "$ldflags -H=windowsgui"
+$guiTags = "mygo_nowebview mygo_noinspector"
 
 $env:CGO_ENABLED = "0"
-Write-Host "Building downloadx.exe and downloadx-gui.exe ($Version)..."
-go build -trimpath -tags=mygo_nowebview -ldflags $ldflags -o (Join-Path $payload "downloadx.exe") ./cmd/downloadx
-if ($LASTEXITCODE -ne 0) { throw "go build downloadx failed" }
-go build -trimpath -tags=mygo_nowebview -ldflags $guiLdflags -o (Join-Path $payload "downloadx-gui.exe") ./cmd/downloadx-gui
-if ($LASTEXITCODE -ne 0) { throw "go build downloadx-gui failed" }
-go build -trimpath -ldflags $ldflags -o (Join-Path $payload "downloadx-host.exe") ./cmd/downloadx-host
-if ($LASTEXITCODE -ne 0) { throw "go build downloadx-host failed" }
+Write-Host "Building downloadx.exe, downloadx-gui.exe and downloadx-host.exe ($Version) in parallel..."
+$buildSpecs = @(
+    @{ Name = "downloadx"; Pkg = "./cmd/downloadx"; Tags = ""; Ld = $ldflags },
+    @{ Name = "downloadx-gui"; Pkg = "./cmd/downloadx-gui"; Tags = $guiTags; Ld = $guiLdflags },
+    @{ Name = "downloadx-host"; Pkg = "./cmd/downloadx-host"; Tags = ""; Ld = $ldflags }
+)
+$buildJobs = @()
+foreach ($spec in $buildSpecs) {
+    $statusPath = Join-Path $obj ($spec.Name + ".status")
+    $outPath = Join-Path $payload ($spec.Name + ".exe")
+    $buildJobs += Start-Job -ScriptBlock {
+        param($root, $out, $pkg, $tags, $ldflags, $status)
+        Set-Location $root
+        $env:CGO_ENABLED = "0"
+        $code = 1
+        try {
+            if ($tags) {
+                & go build -trimpath -buildvcs=false -tags $tags -ldflags $ldflags -o $out $pkg
+            } else {
+                & go build -trimpath -buildvcs=false -ldflags $ldflags -o $out $pkg
+            }
+            $code = $LASTEXITCODE
+        } catch {
+            Write-Error $_
+        }
+        Set-Content -Path $status -Value $code -Encoding ascii
+    } -ArgumentList $root, $outPath, $spec.Pkg, $spec.Tags, $spec.Ld, $statusPath
+}
+$buildJobs | Wait-Job | Out-Null
+$failedBuilds = @()
+for ($i = 0; $i -lt $buildJobs.Count; $i++) {
+    $job = $buildJobs[$i]
+    $spec = $buildSpecs[$i]
+    $jobOutput = Receive-Job -Job $job
+    if ($jobOutput) { $jobOutput | ForEach-Object { Write-Host $_ } }
+    $statusPath = Join-Path $obj ($spec.Name + ".status")
+    $code = 1
+    if (Test-Path $statusPath) { $code = [int](Get-Content $statusPath -Raw).Trim() }
+    if ($code -ne 0) { $failedBuilds += $spec.Name }
+}
+$buildJobs | Remove-Job -Force
+if ($failedBuilds.Count -gt 0) {
+    throw "go build failed: $($failedBuilds -join ', ')"
+}
 
 $icon = Join-Path $root "assets\downloadx.ico"
 $license = Join-Path $root "installer\License.rtf"

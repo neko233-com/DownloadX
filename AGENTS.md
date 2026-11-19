@@ -29,6 +29,17 @@ Instructions for coding agents working on DownloadX.
   external-extension registry and auto-updated without the Web Store.
 - MSI installer built with WiX Toolset 3.14.
 
+## Release policy (remembered preference)
+
+- Code signing is intentionally **not required**. Do not block, delay, or
+  downgrade a release because the MSI or executables are unsigned, and do not
+  present signing as a missing deliverable.
+- The release bar is: the public GitHub Release and the
+  `releases/latest/download/...` URLs work for anonymous users, and the published
+  SHA-256 assets match the uploaded files.
+- A brief SmartScreen/unknown-publisher note is enough; never treat it as a
+  blocker. Other people must simply be able to download and install the release.
+
 ## Hard rules
 
 1. **No GitHub Actions / CI/CD.** Do not create `.github/workflows`. Tags and
@@ -58,7 +69,7 @@ gofmt -w .
 go vet ./...
 go test ./...
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1   # if the extension changed
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.4
 ```
 
 Then install the MSI:
@@ -139,15 +150,15 @@ Follow `RELEASE.md` exactly. In short:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
-git add -A; git commit -m "release: v2.0.3"; git push origin main
-git tag -a v2.0.3 -m "DownloadX 2.0.3"; git push origin v2.0.3
-gh release create v2.0.3 `
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.4
+git add -A; git commit -m "release: v2.0.4"; git push origin main
+git tag -a v2.0.4 -m "DownloadX 2.0.4"; git push origin v2.0.4
+gh release create v2.0.4 `
   dist\DownloadX-windows-amd64.msi `
   dist\DownloadX-windows-amd64.msi.sha256 `
   dist\DownloadX-extension.crx `
   dist\DownloadX-extension.crx.sha256 `
-  --title "DownloadX 2.0.3" --notes "..."
+  --title "DownloadX 2.0.4" --notes "..."
 ```
 
 Then verify that

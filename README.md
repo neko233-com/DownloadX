@@ -134,6 +134,12 @@ does not flash a console window. `mygo_nowebview` removes WebView2 code from
 the Windows build, which also avoids antivirus heuristics on unsigned
 executables.
 
+Release packaging also strips symbols and build IDs (`-s -w -buildid=`), drops
+the MyGo inspector with `mygo_noinspector`, builds the CLI, GUI and native host
+in parallel, and stores the MSI payload in a high-compression cabinet. The
+2.0.4 MSI is about 17.4 MB (down from 21.5 MB), and a warm build takes about
+25 seconds on the reference machine.
+
 ## CLI
 
 ```powershell
@@ -301,9 +307,10 @@ shown to the app; the `name` is what Settings displays.
 - `ftps://` means explicit TLS (`AUTH TLS`); implicit FTPS and SFTP are not
   supported.
 - BitTorrent v2-only torrents are not guaranteed; v1 and hybrid torrents work.
-- The MSI and executables are unsigned. Windows may show an unknown-publisher
-  or SmartScreen prompt on first run; choose **More info → Run anyway**. The
-  published SHA-256 checksums can be verified against the release assets.
+- Builds are intentionally unsigned. Windows may show an unknown-publisher or
+  SmartScreen prompt on first run; choose **More info → Run anyway**. This is
+  expected and does not block installation. The published SHA-256 checksums can
+  be verified against the release assets.
 - Self-hosted browser extensions need one **Keep extension** confirmation per
   browser on unmanaged Windows. That is a browser security rule, not a
   DownloadX prompt.
@@ -315,10 +322,10 @@ There is no CI/CD. Tags and GitHub releases are created by hand. See
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build-extension.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.3
-git tag -a v2.0.3 -m "DownloadX 2.0.3"
-git push origin v2.0.3
-gh release create v2.0.3 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
+powershell -ExecutionPolicy Bypass -File scripts\build-msi.ps1 -Version 2.0.4
+git tag -a v2.0.4 -m "DownloadX 2.0.4"
+git push origin v2.0.4
+gh release create v2.0.4 dist\DownloadX-windows-amd64.msi dist\DownloadX-windows-amd64.msi.sha256 dist\DownloadX-extension.crx dist\DownloadX-extension.crx.sha256
 ```
 
 The build scripts produce `dist\DownloadX-windows-amd64.msi` and

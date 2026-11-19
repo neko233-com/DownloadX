@@ -8,7 +8,7 @@
            UpgradeCode="F7253FB4-CC8C-449F-B7CD-39DA557D76AE">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of DownloadX is already installed." />
-    <MediaTemplate EmbedCab="yes" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="DownloadX.ico" SourceFile="$(var.IconFile)" />
     <Property Id="ARPPRODUCTICON" Value="DownloadX.ico" />
